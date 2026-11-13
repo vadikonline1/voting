@@ -73,10 +73,20 @@ class Election(Base):
     is_active = Column(Boolean, default=True)
     require_signature = Column(Boolean, default=True)
 
+    # --- Public results dashboard ------------------------------------------
+    # Random, unguessable identifier used by the public dashboard:
+    # https://domeniu/{public_uuid}/dashboard
+    public_uuid = Column(String, unique=True, index=True, default=lambda: uuid.uuid4().hex)
+
     # --- Confirmation email options (per election) -------------------------
     email_with_attachment = Column(Boolean, default=True)  # False = send the email without the PDF
     email_cc = Column(String, default="")                  # optional copy addresses, comma separated
     email_bcc = Column(String, default="")                 # optional hidden copy addresses, comma separated
+
+    # --- Results reports (per election) ------------------------------------
+    results_email = Column(String, default="")             # APC address(es) receiving the results reports
+    notify_results_on_vote = Column(Boolean, default=True)  # email updated results after every new vote
+    results_final_email_sent_at = Column(DateTime, nullable=True)  # final report sent once, after end_date_vot
 
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)

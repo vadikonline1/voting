@@ -1,4 +1,8 @@
 import os
+import threading
+import time
+import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request
@@ -11,7 +15,8 @@ from .database import Base, engine, SessionLocal
 from . import models
 from .auth import hash_password, verify_password
 from .config import settings
-from .routers import ballot, admin
+from .notifications import send_pending_final_results
+from .routers import ballot, admin, public
 
 Base.metadata.create_all(bind=engine)
 
@@ -35,6 +40,10 @@ def _migrate_sqlite():
             "email_with_attachment": "BOOLEAN DEFAULT 1",
             "email_cc": "VARCHAR DEFAULT ''",
             "email_bcc": "VARCHAR DEFAULT ''",
+            "public_uuid": "VARCHAR",
+            "results_email": "VARCHAR DEFAULT ''",
+            "notify_results_on_vote": "BOOLEAN DEFAULT 1",
+            "results_final_email_sent_at": "DATETIME",
         },
         "votes": {
             "gdpr_consent_at": "DATETIME",
@@ -49,6 +58,20 @@ def _migrate_sqlite():
             for name, ddl in columns.items():
                 if name not in existing:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
+
+        # Existing elections predate the public dashboard: give each one a random identifier.
+        rows = conn.execute(
+            text("SELECT id FROM elections WHERE public_uuid IS NULL OR public_uuid = ''")
+        ).fetchall()
+        for (election_id,) in rows:
+            conn.execute(
+                text("UPDATE elections SET public_uuid = :value WHERE id = :id"),
+                {"value": uuid.uuid4().hex, "id": election_id},
+            )
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_elections_public_uuid "
+            "ON elections (public_uuid)"
+        ))
 
 
 _migrate_sqlite()
@@ -119,7 +142,37 @@ def _bootstrap():
 
 _bootstrap()
 
-app = FastAPI(title="Sistem de Vot")
+
+def _run_results_scheduler(stop_event: threading.Event, interval_seconds: int = 300) -> None:
+    """Light-weight background loop: sends the final results report once per election,
+    shortly after its end date has passed."""
+    while not stop_event.wait(interval_seconds):
+        db = SessionLocal()
+        try:
+            sent = send_pending_final_results(db)
+            if sent:
+                print(f"[results] Raport final trimis pentru {sent} vot(uri).")
+        except Exception as exc:  # noqa: BLE001 - the scheduler must never kill the app
+            print(f"[results] Verificarea rapoartelor finale a eșuat: {exc}")
+        finally:
+            db.close()
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    stop_event = threading.Event()
+    thread = threading.Thread(
+        target=_run_results_scheduler, args=(stop_event,), daemon=True,
+        name="results-final-email",
+    )
+    thread.start()
+    try:
+        yield
+    finally:
+        stop_event.set()
+
+
+app = FastAPI(title="Sistem de Vot", lifespan=lifespan)
 
 
 @app.exception_handler(RequestValidationError)
@@ -136,6 +189,7 @@ async def _validation_exception_handler(request: Request, exc: RequestValidation
 
 app.include_router(ballot.router)
 app.include_router(admin.router)
+app.include_router(public.router)
 
 FRONTEND_DIST = os.environ.get("FRONTEND_DIST", "/app/frontend_dist")
 

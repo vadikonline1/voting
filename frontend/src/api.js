@@ -32,6 +32,9 @@ export const api = {
     request(`/ballot/${uuid}/vote`, { method: "POST", body: JSON.stringify(payload) }),
   receiptUrl: (uuid) => `${BASE}/ballot/${uuid}/receipt.pdf`,
 
+  // public results dashboard
+  publicResults: (publicUuid) => request(`/public/results/${publicUuid}`),
+
   // admin auth
   login: (username, password) =>
     request(`/admin/login`, { method: "POST", body: JSON.stringify({ username, password }) }),
@@ -62,6 +65,10 @@ export const api = {
 
   // results
   results: (electionId) => request(`/admin/elections/${electionId}/results`),
+  sendResults: (electionId, final = false) =>
+    request(`/admin/elections/${electionId}/send-results?final=${final ? "true" : "false"}`, {
+      method: "POST",
+    }),
 
   // smtp
   getSmtp: () => request(`/admin/smtp`),

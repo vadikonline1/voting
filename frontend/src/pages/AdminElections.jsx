@@ -41,6 +41,8 @@ function emptyElection() {
     email_with_attachment: true,
     email_cc: "",
     email_bcc: "",
+    results_email: "",
+    notify_results_on_vote: true,
   };
 }
 
@@ -298,6 +300,32 @@ export default function AdminElections() {
           CC/BCC primesc automat o copie a fiecărei confirmări trimise pentru acest vot.
         </p>
 
+        <h3>Raport de rezultate către APC</h3>
+        <div className="field-row">
+          <label className="field">
+            <span>Email APC pentru rezultate (poate conține mai multe adrese, virgulă între ele)</span>
+            <input
+              type="text"
+              value={editing.results_email || ""}
+              onChange={(e) => setEditing({ ...editing, results_email: e.target.value })}
+              placeholder="apc@exemplu.com"
+            />
+          </label>
+        </div>
+        <label className="checkbox-field">
+          <input
+            type="checkbox"
+            checked={editing.notify_results_on_vote !== false}
+            onChange={(e) => setEditing({ ...editing, notify_results_on_vote: e.target.checked })}
+          />
+          Trimite rezultatele actualizate pe email la fiecare vot nou
+        </label>
+        <p className="muted">
+          Raportul conține rezultatele în procente, diagrame și link-ul dashboardului public. La
+          încheierea votării se trimite automat un raport final. Trimiterea manuală se face din
+          pagina „Link-uri &amp; rezultate”.
+        </p>
+
         <label className="checkbox-field">
           <input
             type="checkbox"
@@ -487,6 +515,9 @@ export default function AdminElections() {
               {e.require_signature ? " · semnătură obligatorie" : ""}
               {e.email_with_attachment ? " · email cu PDF" : " · email fără atașament"}
             </p>
+            {e.results_email && (
+              <p className="muted">Rezultate către: {e.results_email}</p>
+            )}
             <div className="actions-row">
               <button className="btn" onClick={() => startEdit(e)}>
                 Editează conținut

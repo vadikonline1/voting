@@ -1,17 +1,19 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import AdminLayout from "./components/AdminLayout";
 import AdminLogin from "./pages/AdminLogin";
 import AdminElections from "./pages/AdminElections";
 import AdminElectionDetail from "./pages/AdminElectionDetail";
 import AdminSmtp from "./pages/AdminSmtp";
 import AdminChangePassword from "./pages/AdminChangePassword";
+import ElectionDashboard from "./pages/ElectionDashboard";
+import Home from "./pages/Home";
 import VotePage from "./pages/VotePage";
 
 export default function App() {
   return (
     <Routes>
-      {/* no public homepage is needed - root goes straight to the admin login */}
-      <Route path="/" element={<Navigate to="/admin" replace />} />
+      {/* clean blank home page - no automatic redirect to the admin panel */}
+      <Route path="/" element={<Home />} />
 
       <Route path="/admin/login" element={<AdminLogin />} />
       <Route path="/admin" element={<AdminLayout />}>
@@ -20,6 +22,9 @@ export default function App() {
         <Route path="smtp" element={<AdminSmtp />} />
         <Route path="change-password" element={<AdminChangePassword />} />
       </Route>
+
+      {/* public results dashboard: /{public_uuid}/dashboard */}
+      <Route path="/:uuid/dashboard" element={<ElectionDashboard />} />
 
       {/* public ballot links: /{uuid} - must stay last so it doesn't swallow /admin/* */}
       <Route path="/:uuid" element={<VotePage />} />

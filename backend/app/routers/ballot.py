@@ -14,6 +14,7 @@ from ..ballot_text import GDPR_TEXT, build_ballot_texts
 from ..email_html import build_email_html, build_email_text
 from ..pdf import generate_receipt_pdf
 from ..email_utils import send_confirmation_email
+from ..notifications import send_results_after_vote
 
 router = APIRouter(prefix="/api/ballot", tags=["ballot"])
 
@@ -296,6 +297,14 @@ def submit_vote(token_id: str, payload: schemas.VoteSubmission, request: Request
             email_sent = ok
             vote.email_sent = ok
             db.commit()
+
+    # Results report to the APC address (if configured). Never let a mail problem fail the vote.
+    try:
+        notification_ok, notification_info = send_results_after_vote(db, election)
+        if not notification_ok and (election.results_email or "").strip() and election.notify_results_on_vote:
+            print(f"[results] Notificarea după vot a eșuat: {notification_info}")
+    except Exception as exc:  # noqa: BLE001 - results email must never break the ballot
+        print(f"[results] Notificarea după vot a eșuat: {exc}")
 
     return {"ok": True, "email_sent": email_sent, "receipt_available": True}
 

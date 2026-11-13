@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../api";
+import ResultsView from "../components/ResultsView";
 
 function parseBulkRows(text) {
   return text
@@ -24,16 +25,38 @@ export default function AdminElectionDetail() {
   const [generated, setGenerated] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sendStatus, setSendStatus] = useState("");
+  const [sending, setSending] = useState(false);
 
   function loadChecklist() {
     api.checklist(id).then(setChecklistData).catch((e) => setError(e.message));
   }
 
+  function loadResults() {
+    api.results(id).then(setResultsData).catch((e) => setError(e.message));
+  }
+
   useEffect(() => {
     loadChecklist();
-    api.results(id).then(setResultsData).catch(() => {});
+    loadResults();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  async function handleSendResults() {
+    setSending(true);
+    setSendStatus("");
+    setError("");
+    try {
+      const res = await api.sendResults(id);
+      setSendStatus(`Rezultatele au fost trimise către ${res.sent_to}.`);
+      loadResults();
+    } catch (e) {
+      setSendStatus("");
+      setError(e.message);
+    } finally {
+      setSending(false);
+    }
+  }
 
   async function handleGenerateRows(e) {
     e.preventDefault();
@@ -197,23 +220,68 @@ export default function AdminElectionDetail() {
         </div>
       )}
 
-      {tab === "results" && resultsData && (
+      {tab === "results" && (
         <div className="card">
-          <h3>Total voturi: {resultsData.total_votes}</h3>
-          {resultsData.questions.map((q, idx) => (
-            <div key={q.id} className="results-question">
-              <h4>
-                {String(q.number || "").trim() || String(idx + 1)}. {q.text}
-              </h4>
-              <ul>
-                {Object.entries(resultsData.tally[q.id] || {}).map(([option, cnt]) => (
-                  <li key={option}>
-                    {option}: <strong>{cnt}</strong>
-                  </li>
-                ))}
-              </ul>
+          <div className="actions-row">
+            <h3>Rezultate</h3>
+            <div className="actions-row">
+              <button className="btn" onClick={loadResults}>
+                Reîmprospătează
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleSendResults}
+                disabled={sending || !resultsData || !resultsData.results_email}
+                title={
+                  resultsData && !resultsData.results_email
+                    ? "Configurați adresa APC pentru rezultate în „Editează conținut”."
+                    : "Trimite rezultatele pe emailul APC"
+                }
+              >
+                {sending ? "Se trimite..." : "Trimite rezultatele pe email"}
+              </button>
             </div>
-          ))}
+          </div>
+
+          {resultsData && (
+            <>
+              <p className="muted">
+                Email rezultate: <strong>{resultsData.results_email || "neconfigurat"}</strong>
+                {resultsData.notify_results_on_vote
+                  ? " · se trimite automat la fiecare vot nou"
+                  : " · notificarea automată la vot este dezactivată"}
+              </p>
+
+              {resultsData.dashboard_url ? (
+                <p className="muted">
+                  Dashboard public (în timp real):{" "}
+                  <a href={resultsData.dashboard_url} target="_blank" rel="noreferrer">
+                    {resultsData.dashboard_url}
+                  </a>
+                </p>
+              ) : (
+                <p className="muted">
+                  Dashboardul public va fi disponibil după salvarea votului cu un identificator
+                  public.
+                </p>
+              )}
+
+              {resultsData.results_final_email_sent_at && (
+                <p className="muted">
+                  Raport final trimis la:{" "}
+                  {new Date(resultsData.results_final_email_sent_at).toLocaleString("ro-RO")}
+                </p>
+              )}
+            </>
+          )}
+
+          {sendStatus && <p className="success">{sendStatus}</p>}
+
+          {resultsData ? (
+            <ResultsView results={resultsData} title={false} />
+          ) : (
+            <p className="muted">Se încarcă rezultatele...</p>
+          )}
         </div>
       )}
     </div>

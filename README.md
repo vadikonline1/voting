@@ -1,6 +1,6 @@
 # Sistem de Vot (buletin APC)
 
-Sistem de votare online pentru buletinul de vot al Adunării Generale a membrilor unei Asociații de Proprietari din Condominiu (APC): oricine primește un link `/{uuid}` poate vota, fără pagină publică de start (homepage). Textul legal al buletinului este fix; doar variabilele (nr. APC, adresă, localitate, date, datele proprietarului) se completează din panoul de administrare, fără a modifica codul.
+Sistem de votare online pentru buletinul de vot al Adunării Generale a membrilor unei Asociații de Proprietari din Condominiu (APC): oricine primește un link `/{uuid}` poate vota. Pagina de start `/` este o pagină albă, fără redirect automat către panoul de administrare. Textul legal al buletinului este fix; doar variabilele (nr. APC, adresă, localitate, date, datele proprietarului) se completează din panoul de administrare, fără a modifica codul.
 
 ## Funcționalități
 
@@ -19,18 +19,24 @@ Sistem de votare online pentru buletinul de vot al Adunării Generale a membrilo
 - Generare automată a unui PDF „buletin de vot - confirmare” pentru fiecare vot (text legal, întrebări + vot, semnătură, data/ora, consimțământ GDPR, id-ul votului).
 - Confirmare pe email configurabilă per vot: **cu atașament PDF** sau **fără atașament** (atunci emailul conține textul legal și linkul de descărcare a buletinului). Emailul este multipart (text simplu + HTML) și poate avea **copii CC/BCC** configurate per vot, trimise automat la fiecare confirmare.
 - Trimiterea emailului folosește setările SMTP din panoul de administrare (host, port, user, parolă, TLS, subiect, conținut), nu doar variabile din `.env`.
+- **Raport de rezultate către APC:** fiecare vot poate avea o adresă de email APC care primește rapoarte cu rezultatele:
+  - automat la fiecare vot nou (opțional, per vot);
+  - manual din panoul de administrare, tab-ul „Rezultate” (butonul „Trimite rezultatele pe email”);
+  - automat o singură dată la încheierea votării (după `end_date_vot`), printr-un proces de fundal ușor care verifică periodic.
+  Raportul conține rezultatele **în procente**, numărul de voturi, participarea și o **diagramă** (bare) pentru fiecare întrebare, atât în HTML, cât și în varianta text. O eroare de email nu blochează niciodată votul.
+- **Dashboard public în timp real:** fiecare vot primește un identificator public aleator, diferit de link-urile de vot, la adresa `https://domeniu/{public_uuid}/dashboard`. Pagina afișează rezultatele agregate în procente și diagrame și se actualizează automat la fiecare 5 secunde. Link-ul dashboardului este inclus în rapoartele de email și în panoul de administrare.
 - Panou de administrare (user + parolă):
   - autentificare cu credențiale inițiale simple și **schimbare obligatorie a parolei la prima conectare**; parola poate fi schimbată oricând din „Schimbă parola”, iar resetarea în caz de blocare se face controlat din `.env`;
   - editor de conținut pentru buletin: nr. APC, adresă, localitate, data Adunării, termenul-limită, tip proprietate, întrebări cu numerotare liberă și logică condiționată;
   - setări per vot pentru email: cu/fără atașament PDF, copii CC și BCC;
   - generare în masă de link-uri personalizate (nume, telefon, adresă, email, nr. proprietate pentru fiecare proprietar) sau link-uri goale de completat ulterior;
-  - export CSV, **checklist** cu cine a votat și cine nu (fără a arăta conținutul votului — vot secret), rezultate agregate pe întrebare.
+  - export CSV, **checklist** cu cine a votat și cine nu (fără a arăta conținutul votului — vot secret), rezultate agregate pe întrebare, link către dashboardul public și trimiterea manuală a raportului de rezultate.
 - Tot sistemul rulează în Docker (un singur container pentru backend + build-ul React, plus opțional Caddy pentru HTTPS automat).
 
 ## Stack tehnic
 
 - **Backend:** Python (FastAPI) + SQLAlchemy + SQLite (fișier persistent, fără server de bază de date separat de administrat) + ReportLab (PDF, cu fontul DejaVu Sans inclus pentru diacritice) + `smtplib` (email).
-- **Frontend:** React (Vite) — pagina publică de vot + panoul de administrare, SPA servit tot de backend (un singur container).
+- **Frontend:** React (Vite) — pagina publică de vot, dashboardul public de rezultate și panoul de administrare, SPA servit tot de backend (un singur container).
 - **Docker:** build multi-stage (Node → build React, apoi Python runtime care servește API-ul și fișierele React), `compose.yaml` + `Dockerfile` la rădăcina proiectului.
 
 ## Pornire rapidă
@@ -80,13 +86,16 @@ Caddy obține automat certificatul Let's Encrypt pentru domeniul din `PUBLIC_DOM
 
 ## Fluxul de utilizare
 
-1. **Creează/editează votul** din `/admin` → „Voturi APC” → „Vot nou” sau „Editează conținut”: nr. APC, adresa condominiului, localitatea, data Adunării Generale cu prezență, termenul-limită de remitere a buletinului, tipul de proprietate și întrebările supuse votului (numerotare liberă `1`, `2`, `3.a`…; opțiuni implicite „Pentru” / „Împotriva”). Tot aici alegi expedierea confirmării **cu sau fără atașament PDF**, precum și eventualele **copii CC/BCC**, și poți seta o întrebare ca dependentă de răspunsul la una anterioară.
+1. **Creează/editează votul** din `/admin` → „Voturi APC” → „Vot nou” sau „Editează conținut”: nr. APC, adresa condominiului, localitatea, data Adunării Generale cu prezență, termenul-limită de remitere a buletinului, tipul de proprietate și întrebările supuse votului (numerotare liberă `1`, `2`, `3.a`…; opțiuni implicite „Pentru” / „Împotriva”). Tot aici alegi expedierea confirmării **cu sau fără atașament PDF**, precum și eventualele **copii CC/BCC**, setezi **adresa de email APC pentru rezultate** și opțiunea de a trimite raportul la fiecare vot nou, și poți seta o întrebare ca dependentă de răspunsul la una anterioară.
 2. **Generează link-uri** din `/admin/elections/{id}` → „Link-uri de vot & checklist”:
    - fie lipsești o listă de proprietari (un rând pe proprietar: `Nume Prenume; telefon; adresă; email; nr. proprietate`), iar fiecare link vine deja completat cu datele acelui proprietar;
    - fie generezi link-uri goale și completezi datele mai târziu (din API, `PUT /api/admin/tokens/{id}`).
-3. **Configurează SMTP** din `/admin/smtp` (obligatoriu pentru trimiterea confirmărilor pe email).
-4. Proprietarul deschide `https://domeniu/{uuid}`, verifică/completează datele personale, răspunde la întrebări (cele condiționate se blochează automat dacă este cazul), bifează acordul GDPR, semnează olograf și trimite votul. Textul legal apare doar în PDF-ul și emailul de confirmare, nu pe pagina de vot. Nu există pagină publică de start — doar linkurile individuale funcționează.
-5. Urmărești în timp real cine a votat din checklist (`/admin/elections/{id}`) și rezultatele agregate din tab-ul „Rezultate”.
+3. **Configurează SMTP** din `/admin/smtp` (necesar atât pentru confirmările pe email, cât și pentru rapoartele de rezultate către APC).
+4. Proprietarul deschide `https://domeniu/{uuid}`, verifică/completează datele personale, răspunde la întrebări (cele condiționate se blochează automat dacă este cazul), bifează acordul GDPR, semnează olograf și trimite votul. Textul legal apare doar în PDF-ul și emailul de confirmare, nu pe pagina de vot. Pagina de start `/` este albă; panoul de administrare se accesează direct la `/admin/login`.
+5. Urmărești în timp real cine a votat din checklist (`/admin/elections/{id}`) și rezultatele agregate din tab-ul „Rezultate”. De acolo poți:
+   - deschide **dashboardul public** `/{public_uuid}/dashboard` și îl poți partaja membrilor APC (se actualizează automat, fără date personale);
+   - trimite manual raportul de rezultate pe emailul APC.
+6. La încheierea votării (`end_date_vot`), sistemul trimite automat **o singură dată** raportul final către adresa APC configurată (dacă SMTP este activ).
 
 ## Structura proiectului
 
@@ -104,5 +113,7 @@ Caddyfile             config Caddy pentru HTTPS automat
 - Schimbă `SECRET_KEY` și parola de administrare din `.env` înainte de a expune public aplicația. Credențialele inițiale `admin` / `admin` sunt publice prin documentație; sistemul cere schimbarea parolei la prima autentificare, dar nu lăsați instanța expusă cu parola implicită nesolicitată.
 - Parola SMTP este stocată în baza de date (editabilă din panou); pentru producție, rulează aplicația în spatele HTTPS (profilul `caddy` sau propriul reverse proxy) ca traficul (inclusiv cookie-ul de sesiune admin) să fie criptat.
 - Fiecare link de vot poate fi folosit o singură dată; după ce s-a votat, linkul arată doar confirmarea și permite descărcarea PDF-ului, fără a permite revotarea.
+- Dashboardul public folosește un identificator aleator separat (`public_uuid`) și afișează exclusiv rezultate agregate, fără date personale. Nu îl confundați cu link-urile de vot: cine are link-ul dashboardului vede rezultatele, dar nu poate vota.
+- Raportul final se trimite o singură dată per vot; momentul trimiterii este reținut în baza de date (`results_final_email_sent_at`), deci o repornire a aplicației nu retrimite raportul.
 - Datele personale introduse de votant sunt folosite exclusiv pentru organizarea votării; consimțământul GDPR este obligatoriu și înregistrat (dată + oră) în baza de date și în PDF.
 - Fonturile DejaVu Sans incluse în `backend/app/fonts/` sunt licențiate liber (Bitstream Vera + Arev Fonts License), redistribuire permisă.

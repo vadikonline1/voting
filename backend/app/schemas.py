@@ -34,10 +34,13 @@ class ElectionIn(BaseModel):
     email_with_attachment: bool = True
     email_cc: str = ""
     email_bcc: str = ""
+    results_email: str = ""
+    notify_results_on_vote: bool = True
 
 
 class ElectionOut(ElectionIn):
     id: int
+    public_uuid: str = ""
     created_at: datetime
     updated_at: datetime
 

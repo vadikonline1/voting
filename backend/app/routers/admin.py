@@ -1,6 +1,7 @@
 import csv
 import io
 import json
+import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -13,6 +14,8 @@ from ..auth import (
 )
 from ..config import settings
 from ..database import get_db
+from ..notifications import send_results_email
+from ..results import compute_results, dashboard_url
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -97,6 +100,9 @@ def _election_to_out(e: models.Election) -> schemas.ElectionOut:
         email_with_attachment=bool(e.email_with_attachment),
         email_cc=e.email_cc or "",
         email_bcc=e.email_bcc or "",
+        results_email=e.results_email or "",
+        notify_results_on_vote=bool(e.notify_results_on_vote),
+        public_uuid=e.public_uuid or "",
         created_at=e.created_at,
         updated_at=e.updated_at,
     )
@@ -117,6 +123,8 @@ def _apply_election_fields(election: models.Election, payload: schemas.ElectionI
     election.email_with_attachment = payload.email_with_attachment
     election.email_cc = payload.email_cc
     election.email_bcc = payload.email_bcc
+    election.results_email = (payload.results_email or "").strip()
+    election.notify_results_on_vote = payload.notify_results_on_vote
 
 
 # -------------------------------------------------------------- elections --
@@ -128,7 +136,7 @@ def list_elections(username: str = Depends(require_admin), db: Session = Depends
 
 @router.post("/elections", response_model=schemas.ElectionOut)
 def create_election(payload: schemas.ElectionIn, username: str = Depends(require_admin), db: Session = Depends(get_db)):
-    election = models.Election()
+    election = models.Election(public_uuid=uuid.uuid4().hex)
     _apply_election_fields(election, payload)
     db.add(election)
     db.commit()
@@ -292,29 +300,37 @@ def results(election_id: int, username: str = Depends(require_admin), db: Sessio
     election = db.query(models.Election).get(election_id)
     if not election:
         raise HTTPException(status_code=404, detail="Votul nu a fost găsit")
-    questions = json.loads(election.questions_json or "[]")
-    votes = db.query(models.Vote).filter(models.Vote.election_id == election_id).all()
+    data = compute_results(db, election)
+    data["dashboard_url"] = dashboard_url(election)
+    data["results_email"] = election.results_email or ""
+    data["notify_results_on_vote"] = bool(election.notify_results_on_vote)
+    data["results_final_email_sent_at"] = (
+        election.results_final_email_sent_at.isoformat()
+        if election.results_final_email_sent_at else None
+    )
+    return data
 
-    tally = {q["id"]: {opt: 0 for opt in q.get("options", [])} for q in questions}
-    for v in votes:
-        answers = json.loads(v.answers_json or "{}")
-        for q in questions:
-            qid = q["id"]
-            ans = answers.get(qid)
-            if ans is None:
-                continue
-            if isinstance(ans, list):
-                for a in ans:
-                    tally[qid][a] = tally[qid].get(a, 0) + 1
-            else:
-                tally[qid][ans] = tally[qid].get(ans, 0) + 1
 
-    return {
-        "election_title": election.title,
-        "total_votes": len(votes),
-        "questions": questions,
-        "tally": tally,
-    }
+@router.post("/elections/{election_id}/send-results")
+def send_results(
+    election_id: int,
+    final: bool = False,
+    username: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Email the current results report to the configured APC address."""
+    election = db.query(models.Election).get(election_id)
+    if not election:
+        raise HTTPException(status_code=404, detail="Votul nu a fost găsit")
+    if not (election.results_email or "").strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Configurați mai întâi adresa de email APC pentru rezultate.",
+        )
+    ok, info = send_results_email(db, election, final=final)
+    if not ok:
+        raise HTTPException(status_code=400, detail=f"Trimiterea a eșuat: {info}")
+    return {"ok": True, "sent_to": election.results_email, "final": final}
 
 
 # --------------------------------------------------------------- smtp -----
