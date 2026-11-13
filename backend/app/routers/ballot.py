@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -40,7 +41,11 @@ def _now():
 def _active_election(db: Session, nr_apc: str) -> models.Election:
     election = (
         db.query(models.Election)
-        .filter(models.Election.nr_apc == nr_apc.strip(), models.Election.is_active.is_(True))
+        # the link is not case sensitive: /A0150-0325 and /a0150-0325 open the same vote
+        .filter(
+            func.lower(models.Election.nr_apc) == nr_apc.strip().lower(),
+            models.Election.is_active.is_(True),
+        )
         .order_by(models.Election.id.desc())
         .first()
     )

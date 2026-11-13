@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
@@ -120,7 +121,7 @@ def _ensure_single_active(db: Session, payload: schemas.ElectionIn, election_id:
     if not (payload.nr_apc or "").strip():
         raise HTTPException(status_code=400, detail="Completați numărul APC înainte de a activa votul.")
     query = db.query(models.Election).filter(
-        models.Election.nr_apc == payload.nr_apc.strip(),
+        func.lower(models.Election.nr_apc) == payload.nr_apc.strip().lower(),
         models.Election.is_active.is_(True),
     )
     if election_id is not None:
