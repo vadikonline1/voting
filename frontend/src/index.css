@@ -678,9 +678,9 @@ h2 { font-size: 1.25rem; }
 }
 
 /* --- Vote page: property selection, large and easy to use ---------------- */
-.property-section .section-title { font-size: 1.35rem; }
+.property-section .section-title { font-size: 0.98rem; }
 .property-help {
-  font-size: 1.1rem;
+  font-size: 0.98rem;
   line-height: 1.6;
   color: var(--text);
   margin: 4px 0 18px;
@@ -697,16 +697,16 @@ h2 { font-size: 1.25rem; }
 
 .property-toggle {
   width: 100%;
-  min-height: 72px;
+  min-height: 50px;
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 14px 18px;
+  padding: 9px 14px;
   border: 0;
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 1.3rem;
+  font-size: 1.05rem;
   font-weight: 600;
   text-align: left;
   cursor: pointer;
@@ -720,80 +720,125 @@ h2 { font-size: 1.25rem; }
   outline-offset: 2px;
 }
 .property-box {
-  flex: 0 0 36px;
-  width: 36px;
-  height: 36px;
-  border: 3px solid #7d8796;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  border: 2px solid #7d8796;
   border-radius: 8px;
   background: #fff;
   color: #fff;
   display: grid;
   place-items: center;
-  font-size: 1.5rem;
+  font-size: 1.1rem;
   font-weight: 700;
 }
 .property-row-on .property-box { border-color: var(--primary); background: var(--primary); }
 
 .property-fields {
-  padding: 4px 18px 20px;
+  padding: 4px 14px 14px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   border-top: 2px solid #dfe5ee;
 }
 .property-field { display: flex; flex-direction: column; gap: 8px; padding-top: 14px; }
-.property-field-label { font-size: 1.1rem; font-weight: 600; }
+.property-field-label { font-size: 0.98rem; font-weight: 600; }
 .property-input-row { display: flex; gap: 10px; align-items: stretch; }
 .property-input {
   flex: 1;
   min-width: 0;
-  min-height: 60px;
-  padding: 12px 16px;
+  min-height: 42px;
+  padding: 9px 12px;
   border: 2px solid #8c96a6;
   border-radius: 10px;
   font: inherit;
-  font-size: 1.25rem;
+  font-size: 1rem;
   background: #fff;
   color: var(--text);
 }
-.property-input::placeholder { color: #8a93a3; font-size: 1.05rem; }
+.property-input::placeholder { color: #8a93a3; font-size: 0.95rem; }
 .property-remove {
-  min-height: 60px;
+  min-height: 42px;
   padding: 0 18px;
   border: 2px solid #c23b3b;
   border-radius: 10px;
   background: #fff;
   color: #c23b3b;
   font: inherit;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
 }
 .property-add {
-  min-height: 56px;
+  min-height: 42px;
   width: 100%;
   border: 2px dashed var(--primary);
   border-radius: 10px;
   background: #fff;
   color: var(--primary);
   font: inherit;
-  font-size: 1.1rem;
+  font-size: 0.98rem;
   font-weight: 600;
   cursor: pointer;
 }
 .property-add:hover, .property-remove:hover { background: #f0f4ff; }
 .property-error {
   margin: 14px 0 0;
-  padding: 12px 16px;
+  padding: 9px 12px;
   border-radius: 10px;
   background: #fdf1f1;
   color: #8a2222;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 600;
 }
 
 @media (max-width: 480px) {
-  .property-toggle { font-size: 1.2rem; }
+  .property-toggle { font-size: 1rem; }
   .property-input-row { flex-direction: column; }
-  .property-remove { min-height: 52px; }
+  .property-remove { min-height: 42px; }
 }
+
+/* --- Vote page: options as inline buttons (e.g. Pentru / Împotriva) ----- */
+.question {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.question legend { width: 100%; }
+.question .option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  margin: 0;
+  padding: 8px 18px;
+  border: 1.5px solid #c5cdd9;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.question .option:hover { border-color: var(--primary); }
+.question .option input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  pointer-events: none;
+}
+.question .option:focus-within { outline: 3px solid #f0a500; outline-offset: 2px; }
+.question .option:has(input:checked) {
+  border-color: var(--primary);
+  background: #eef3ff;
+  color: #1d3f8f;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+.question .option-disabled { opacity: 0.55; cursor: not-allowed; }
+.question .auto-note { width: 100%; margin: 4px 0 0; }
