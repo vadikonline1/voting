@@ -94,6 +94,9 @@ class Election(Base):
     results_email = Column(String, default="")             # APC address(es) receiving the results reports
     notify_results_on_vote = Column(Boolean, default=True)  # email updated results after every new vote
     results_final_email_sent_at = Column(DateTime, nullable=True)  # final report sent once, after end_date_vot
+    # Expiry reminders to the APC (3, 2, 1 days before end_date_vot). Stores the end date they belong to,
+    # so a prolonged vote (new end_date_vot) gets its reminders again: {"end": "...", "sent": [3, 2]}
+    expiry_reminders_json = Column(Text, default="{}")
 
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)

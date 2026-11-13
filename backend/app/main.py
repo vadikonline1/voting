@@ -15,7 +15,7 @@ from .database import Base, engine, SessionLocal
 from . import models
 from .auth import hash_password, verify_password
 from .config import settings
-from .notifications import send_pending_final_results
+from .notifications import send_expiry_reminders, send_pending_final_results
 from .routers import ballot, admin, public
 
 Base.metadata.create_all(bind=engine)
@@ -44,6 +44,7 @@ def _migrate_sqlite():
             "results_email": "VARCHAR DEFAULT ''",
             "notify_results_on_vote": "BOOLEAN DEFAULT 1",
             "results_final_email_sent_at": "DATETIME",
+            "expiry_reminders_json": "TEXT DEFAULT '{}'",
             "properties_json": "TEXT DEFAULT '[]'",
             "allow_multiple_properties": "BOOLEAN DEFAULT 1",
         },
@@ -158,6 +159,9 @@ def _run_results_scheduler(stop_event: threading.Event, interval_seconds: int = 
             sent = send_pending_final_results(db)
             if sent:
                 print(f"[results] Raport final trimis pentru {sent} vot(uri).")
+            reminders = send_expiry_reminders(db)
+            if reminders:
+                print(f"[reminders] Înștiințări de expirare trimise: {reminders}.")
         except Exception as exc:  # noqa: BLE001 - the scheduler must never kill the app
             print(f"[results] Verificarea rapoartelor finale a eșuat: {exc}")
         finally:

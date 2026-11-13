@@ -14,6 +14,26 @@ export default function AdminElectionDetail() {
   const [copied, setCopied] = useState(false);
   const [sendStatus, setSendStatus] = useState("");
   const [sending, setSending] = useState(false);
+  const [newEnd, setNewEnd] = useState("");
+  const [extendStatus, setExtendStatus] = useState("");
+
+  async function handleExtend(e) {
+    e.preventDefault();
+    setError("");
+    setExtendStatus("");
+    if (!newEnd) {
+      setError("Alegeți noua dată de încheiere a votării.");
+      return;
+    }
+    try {
+      await api.extendElection(id, new Date(newEnd).toISOString());
+      setExtendStatus("Termenul de votare a fost prelungit. Reamintirile către APC vor fi trimise din nou pentru noua dată.");
+      setNewEnd("");
+      loadResults();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   function loadChecklist() {
     api.checklist(id).then(setChecklistData).catch((e) => setError(e.message));
@@ -72,6 +92,33 @@ export default function AdminElectionDetail() {
 
       {tab === "voters" && (
         <div>
+          <form className="card extend-card" onSubmit={handleExtend}>
+            <h3>Termenul de votare</h3>
+            <p className="muted">
+              Încheiere actuală:{" "}
+              <strong>
+                {resultsData?.end_date_vot
+                  ? new Date(resultsData.end_date_vot).toLocaleString("ro-RO")
+                  : "nesetat"}
+              </strong>
+            </p>
+            <p className="muted section-hint">
+              APC-ul primește emailuri cu 3, 2 și 1 zi înainte de încheiere. Dacă prelungiți votarea, alegeți o dată nouă.
+            </p>
+            <div className="extend-row">
+              <input
+                type="datetime-local"
+                value={newEnd}
+                onChange={(e) => setNewEnd(e.target.value)}
+                aria-label="Noua dată de încheiere"
+              />
+              <button className="btn btn-primary" type="submit" disabled={!newEnd}>
+                Prelungește votarea
+              </button>
+            </div>
+            {extendStatus && <p className="success">{extendStatus}</p>}
+          </form>
+
           <div className="card">
             <h3>Link fix de vot pentru acest APC</h3>
             <p className="muted">

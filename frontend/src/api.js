@@ -60,6 +60,10 @@ export const api = {
   checklist: (electionId) => request(`/admin/elections/${electionId}/checklist`),
   tokensCsvUrl: (electionId) => `${BASE}/admin/elections/${electionId}/tokens.csv`,
 
+  // prolong the vote (new end date; expiry reminders restart)
+  extendElection: (id, endIso) =>
+    request(`/admin/elections/${id}/extend?end_date=${encodeURIComponent(endIso)}`, { method: "POST" }),
+
   // results
   results: (electionId) => request(`/admin/elections/${electionId}/results`),
   sendResults: (electionId, final = false) =>

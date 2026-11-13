@@ -215,6 +215,28 @@ def update_election(election_id: int, payload: schemas.ElectionIn, username: str
     return _election_to_out(election)
 
 
+@router.post("/elections/{election_id}/extend")
+def extend_election(
+    election_id: int,
+    end_date: datetime,
+    username: str = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Prolong the vote: sets a new end_date_vot. The expiry reminders start again for the new date."""
+    election = db.query(models.Election).get(election_id)
+    if not election:
+        raise HTTPException(status_code=404, detail="Votul nu a fost găsit")
+    if end_date.tzinfo is not None:
+        end_date = end_date.astimezone(timezone.utc).replace(tzinfo=None)
+    if end_date <= datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Noua dată de încheiere trebuie să fie în viitor.")
+    election.end_date_vot = end_date
+    election.is_active = True
+    election.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"ok": True, "end_date_vot": end_date.isoformat()}
+
+
 @router.delete("/elections/{election_id}")
 def delete_election(election_id: int, username: str = Depends(require_admin), db: Session = Depends(get_db)):
     election = db.query(models.Election).get(election_id)
