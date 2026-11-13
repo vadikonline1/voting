@@ -1,0 +1,35 @@
+services:
+  app:
+    build: .
+    image: voting-app:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite:////data/voting.db
+      - DATA_DIR=/data
+    volumes:
+      - voting_data:/data
+    ports:
+      - "${APP_PORT:-8000}:8000"
+
+  # Optional reverse proxy with automatic HTTPS (Let's Encrypt) for a public domain,
+  # e.g. vot.aalto.md. Only starts with: docker compose --profile https up -d
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    profiles: ["https"]
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  voting_data:
+  caddy_data:
+  caddy_config:
