@@ -26,8 +26,8 @@ export default function App() {
       {/* public results dashboard: /{public_uuid}/dashboard */}
       <Route path="/:uuid/dashboard" element={<ElectionDashboard />} />
 
-      {/* public ballot links: /{uuid} - must stay last so it doesn't swallow /admin/* */}
-      <Route path="/:uuid" element={<VotePage />} />
+      {/* fixed public voting link per APC: /{nr_apc} - must stay last so it doesn't swallow /admin/* */}
+      <Route path="/:nrApc" element={<VotePage />} />
     </Routes>
   );
 }

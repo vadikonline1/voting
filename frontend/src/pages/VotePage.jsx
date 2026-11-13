@@ -4,13 +4,13 @@ import { api } from "../api";
 import SignaturePad from "../components/SignaturePad";
 
 const STATUS_MESSAGES = {
-  voted: "Ați votat deja folosind acest link. Vă mulțumim pentru participare!",
-  closed: "Perioada de votare s-a încheiat.",
+  closed: "Perioada de votare s-a încheiat sau votarea nu este activă.",
 };
+
+const TIP_LABELS = { apartament: "Apartament", debara: "Debara", parcare: "Parcare" };
 
 const NAME_RE = /^[A-Za-zÀ-ÖØ-öø-ÿĀ-ž' .-]+$/;
 const PHONE_RE = /^\+?[0-9][0-9 ()\-.]{5,19}$/;
-const PROP_RE = /^[0-9A-Za-zÀ-ÖØ-öø-ÿĀ-ž/ .-]+$/;
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
 
 const EMPTY_VOTER = {
@@ -18,16 +18,14 @@ const EMPTY_VOTER = {
   phone: "",
   str_locatar: "",
   email: "",
-  nr_proprietate: "",
 };
 
-function validateVoter(voter) {
+function validateVoter(voter, selectedProps) {
   const errors = {};
   const name = (voter.nume_prenume || "").trim();
   const phone = (voter.phone || "").trim();
   const address = (voter.str_locatar || "").trim();
   const email = (voter.email || "").trim();
-  const property = (voter.nr_proprietate || "").trim();
 
   if (name.length < 3 || name.length > 120) {
     errors.nume_prenume = "Introduceți numele și prenumele (3–120 caractere).";
@@ -46,12 +44,13 @@ function validateVoter(voter) {
     errors.str_locatar = "Adresa trebuie să aibă între 5 și 250 de caractere.";
   }
 
-  if (!EMAIL_RE.test(email) || email.length > 160) {
+  // Email is optional: without it the confirmation is sent to the APC address.
+  if (email && (!EMAIL_RE.test(email) || email.length > 160)) {
     errors.email = "Adresa de email nu este validă.";
   }
 
-  if (property.length < 1 || property.length > 30 || !PROP_RE.test(property)) {
-    errors.nr_proprietate = "Numărul unității nu este valid.";
+  if (selectedProps.length === 0) {
+    errors.properties = "Bifați cel puțin un imobil pe care îl dețineți.";
   }
 
   return errors;
@@ -89,13 +88,18 @@ function resolveAnswers(questions, answers) {
   return { auto, effective };
 }
 
+const propKey = (p) => `${p.tip_proprietate}|${p.nr_proprietate}`;
+
 export default function VotePage() {
-  const { uuid } = useParams();
+  const { nrApc } = useParams();
   const [ballot, setBallot] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [answers, setAnswers] = useState({});
   const [voter, setVoter] = useState(EMPTY_VOTER);
+  // property selection: types ticked by the owner, and the numbers typed for each type
+  const [selectedTypes, setSelectedTypes] = useState([]);
+  const [numbers, setNumbers] = useState({}); // { apartament: ["12", "14"], ... }
   const [voterErrors, setVoterErrors] = useState({});
   const [gdpr, setGdpr] = useState(false);
   const [gdprError, setGdprError] = useState("");
@@ -105,19 +109,43 @@ export default function VotePage() {
 
   useEffect(() => {
     api
-      .getBallot(uuid)
-      .then((data) => {
-        setBallot(data);
-        setVoter({ ...EMPTY_VOTER, ...(data.voter || {}) });
-      })
+      .getApcBallot(nrApc)
+      .then(setBallot)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [uuid]);
+  }, [nrApc]);
 
   const { auto, effective } = useMemo(
     () => resolveAnswers(ballot?.questions || [], answers),
     [ballot, answers]
   );
+
+  // property types offered by the APC, in the order the admin listed them
+  const propertyTypes = useMemo(() => {
+    const seen = [];
+    for (const p of ballot?.properties || []) {
+      if (!seen.includes(p.tip_proprietate)) seen.push(p.tip_proprietate);
+    }
+    return seen;
+  }, [ballot]);
+
+  const allowMultiple = ballot?.allow_multiple_properties !== false;
+
+  // the properties the owner declared: each ticked type with its typed numbers (non-empty, unique)
+  const selectedProps = useMemo(() => {
+    const out = [];
+    for (const tip of selectedTypes) {
+      const seen = new Set();
+      for (const raw of numbers[tip] || []) {
+        const nr = (raw || "").trim();
+        if (nr && !seen.has(nr)) {
+          seen.add(nr);
+          out.push({ tip_proprietate: tip, nr_proprietate: nr });
+        }
+      }
+    }
+    return out;
+  }, [selectedTypes, numbers]);
 
   function setAnswer(qid, value) {
     setAnswers((prev) => ({ ...prev, [qid]: value }));
@@ -138,11 +166,46 @@ export default function VotePage() {
     setVoterErrors((prev) => ({ ...prev, [key]: undefined }));
   }
 
+  function toggleType(tip) {
+    setVoterErrors((prev) => ({ ...prev, properties: undefined }));
+    if (selectedTypes.includes(tip)) {
+      setSelectedTypes(selectedTypes.filter((t) => t !== tip));
+      setNumbers((n) => ({ ...n, [tip]: [""] }));
+      return;
+    }
+    // single-property ballots: ticking a type replaces the previous one
+    setSelectedTypes(allowMultiple ? [...selectedTypes, tip] : [tip]);
+    setNumbers((n) => ({ ...n, [tip]: n[tip]?.length ? n[tip] : [""] }));
+  }
+
+  function setNumber(tip, index, value) {
+    setVoterErrors((prev) => ({ ...prev, properties: undefined }));
+    setNumbers((prev) => ({
+      ...prev,
+      [tip]: (prev[tip] || []).map((v, i) => (i === index ? value : v)),
+    }));
+  }
+
+  function addNumber(tip) {
+    setNumbers((prev) => ({ ...prev, [tip]: [...(prev[tip] || []), ""] }));
+  }
+
+  function removeNumber(tip, index) {
+    setNumbers((prev) => {
+      const rest = (prev[tip] || []).filter((_, i) => i !== index);
+      return { ...prev, [tip]: rest.length ? rest : [""] };
+    });
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
 
-    const errors = validateVoter(voter);
+    const errors = validateVoter(voter, selectedProps);
+    const emptyRow = selectedTypes.find((tip) => (numbers[tip] || []).some((nr) => !(nr || "").trim()));
+    if (!errors.properties && emptyRow) {
+      errors.properties = `Introduceți numărul pentru fiecare imobil de tip ${(TIP_LABELS[emptyRow] || emptyRow).toLowerCase()} bifat.`;
+    }
     setVoterErrors(errors);
     if (Object.keys(errors).length > 0) {
       setError("Verificați datele introduse mai jos.");
@@ -163,12 +226,17 @@ export default function VotePage() {
       const payload = {
         answers: effective,
         voter: cleanVoter(voter),
+        properties: selectedProps.map((p) => ({
+          tip_proprietate: p.tip_proprietate,
+          nr_proprietate: p.nr_proprietate,
+        })),
         gdpr_consent: true,
         signature_png_base64: ballot.require_signature ? sigRef.current.toPngBase64() : null,
       };
-      const result = await api.submitVote(uuid, payload);
+      const result = await api.submitApcVote(nrApc, payload);
       setDone(result);
     } catch (e) {
+      // e.g. "Imobilul ... a fost deja votat. Verificați emailul pu****im@gmail.com."
       setError(e.message);
     } finally {
       setSubmitting(false);
@@ -181,7 +249,7 @@ export default function VotePage() {
     return (
       <div className="center-page">
         <div className="card">
-          <h2>Link indisponibil</h2>
+          <h2>Vot indisponibil</h2>
           <p>{error}</p>
         </div>
       </div>
@@ -193,12 +261,7 @@ export default function VotePage() {
       <div className="center-page">
         <div className="card">
           <h1 className="ballot-title">{ballot.title}</h1>
-          <p className="status-message">{STATUS_MESSAGES[ballot.status] || "Votarea nu este disponibilă."}</p>
-          {ballot.already_voted && (
-            <a className="btn" href={api.receiptUrl(uuid)} target="_blank" rel="noreferrer">
-              Descarcă confirmarea votului (PDF)
-            </a>
-          )}
+          <p className="status-message">{STATUS_MESSAGES.closed}</p>
         </div>
       </div>
     );
@@ -209,9 +272,11 @@ export default function VotePage() {
       <div className="center-page">
         <div className="card">
           <h1>Vot înregistrat ✓</h1>
-          <p>Votul dumneavoastră a fost înregistrat cu succes.</p>
-          {done.email_sent && <p>O confirmare a fost trimisă pe adresa de email indicată.</p>}
-          <a className="btn" href={api.receiptUrl(uuid)} target="_blank" rel="noreferrer">
+          <p>Votul dumneavoastră a fost înregistrat pentru {done.properties.length} imobil(e).</p>
+          {done.email_sent && done.email_recipient && (
+            <p>Confirmarea cu buletinul semnat a fost trimisă la {done.email_recipient}.</p>
+          )}
+          <a className="btn" href={done.receipt_url} target="_blank" rel="noreferrer">
             Descarcă confirmarea votului (PDF)
           </a>
         </div>
@@ -231,9 +296,6 @@ export default function VotePage() {
 
         <section className="voter-section">
           <h2 className="section-title">Datele proprietarului</h2>
-          <p className="muted section-hint">
-            Completați datele dumneavoastră. Acestea apar în buletinul de vot din PDF și în emailul de confirmare.
-          </p>
 
           <div className="field-row">
             <label className={`field ${voterErrors.nume_prenume ? "field-invalid" : ""}`}>
@@ -279,37 +341,80 @@ export default function VotePage() {
             {voterErrors.str_locatar && <span className="field-error">{voterErrors.str_locatar}</span>}
           </label>
 
-          <div className="field-row">
-            <label className={`field ${voterErrors.email ? "field-invalid" : ""}`}>
-              <span>
-                Adresă electronică (email) <span className="required">*</span>
-              </span>
-              <input
-                type="email"
-                value={voter.email}
-                onChange={(e) => setVoterField("email", e.target.value)}
-                placeholder="ion.popescu@exemplu.com"
-                autoComplete="email"
-                inputMode="email"
-                maxLength={160}
-              />
-              {voterErrors.email && <span className="field-error">{voterErrors.email}</span>}
-            </label>
-            <label className={`field ${voterErrors.nr_proprietate ? "field-invalid" : ""}`}>
-              <span>
-                Nr. unității (bunului imobil) <span className="required">*</span>
-              </span>
-              <input
-                value={voter.nr_proprietate}
-                onChange={(e) => setVoterField("nr_proprietate", e.target.value)}
-                placeholder="12"
-                maxLength={30}
-              />
-              {voterErrors.nr_proprietate && (
-                <span className="field-error">{voterErrors.nr_proprietate}</span>
-              )}
-            </label>
+          <label className={`field ${voterErrors.email ? "field-invalid" : ""}`}>
+            <span>Adresă electronică (email)</span>
+            <input
+              type="email"
+              value={voter.email}
+              onChange={(e) => setVoterField("email", e.target.value)}
+              placeholder="ion.popescu@exemplu.com"
+              autoComplete="email"
+              inputMode="email"
+              maxLength={160}
+            />
+            <span className="muted section-hint">
+              Dacă nu aveți email, confirmarea cu buletinul PDF va fi trimisă administratorului APC.
+            </span>
+            {voterErrors.email && <span className="field-error">{voterErrors.email}</span>}
+          </label>
+        </section>
+
+        <section className="voter-section">
+          <h2 className="section-title">Imobilele pe care le dețineți *</h2>
+          <p className="muted section-hint">
+            Bifați toate imobilele pentru care dați votul. Votul se aplică la fiecare imobil bifat;
+            un imobil poate fi votat o singură dată.
+          </p>
+          <p className="muted section-hint">
+            {allowMultiple
+              ? "Puteți selecta mai multe imobile."
+              : "Acest vot permite selectarea unui singur imobil."}
+          </p>
+          <div className="property-list">
+            {propertyTypes.map((tip) => {
+              const ticked = selectedTypes.includes(tip);
+              const disabled = !allowMultiple && selectedTypes.length > 0 && !ticked;
+              const rows = numbers[tip] && numbers[tip].length ? numbers[tip] : [""];
+              return (
+                <div key={tip} className="property-type">
+                  <label className="checkbox-field">
+                    <input
+                      type="checkbox"
+                      checked={ticked}
+                      disabled={disabled}
+                      onChange={() => toggleType(tip)}
+                    />
+                    <span>{TIP_LABELS[tip] || tip}</span>
+                  </label>
+                  {ticked && (
+                    <div className="property-numbers">
+                      {rows.map((nr, idx) => (
+                        <div key={idx} className="property-number-row">
+                          <input
+                            value={nr}
+                            onChange={(e) => setNumber(tip, idx, e.target.value)}
+                            placeholder="Introduceți numărul"
+                            maxLength={30}
+                          />
+                          {rows.length > 1 && (
+                            <button type="button" className="btn-link" onClick={() => removeNumber(tip, idx)}>
+                              Șterge
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {allowMultiple && (
+                        <button type="button" className="btn-link" onClick={() => addNumber(tip)}>
+                          + Adaugă alt imobil de tip {(TIP_LABELS[tip] || tip).toLowerCase()}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
+          {voterErrors.properties && <span className="field-error">{voterErrors.properties}</span>}
         </section>
 
         <section className="questions-section">

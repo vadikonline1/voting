@@ -44,6 +44,12 @@ def _migrate_sqlite():
             "results_email": "VARCHAR DEFAULT ''",
             "notify_results_on_vote": "BOOLEAN DEFAULT 1",
             "results_final_email_sent_at": "DATETIME",
+            "properties_json": "TEXT DEFAULT '[]'",
+            "allow_multiple_properties": "BOOLEAN DEFAULT 1",
+        },
+        "voter_tokens": {
+            "tip_proprietate": "VARCHAR DEFAULT 'apartament'",
+            "properties_json": "TEXT DEFAULT '[]'",
         },
         "votes": {
             "gdpr_consent_at": "DATETIME",
@@ -132,7 +138,7 @@ def _bootstrap():
                     '[{"id":"q1","number":"1","text":"Aprobarea dării de seamă a administratorului pe anul curent.",'
                     '"type":"single","options":["Pentru","Împotriva"],"required":true}]'
                 ),
-                is_active=True,
+                is_active=False,  # exemplul nu este activ, ca să nu blocheze linkul APC real
                 require_signature=True,
             ))
         db.commit()

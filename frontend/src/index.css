@@ -398,3 +398,27 @@ h2 { font-size: 1.25rem; }
   .public-dashboard { padding: 24px 12px 48px; }
   .result-bar-row { grid-template-columns: 88px 1fr 84px; }
 }
+
+.property-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.property-type {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.property-numbers {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 8px 28px;
+}
+.property-number-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}

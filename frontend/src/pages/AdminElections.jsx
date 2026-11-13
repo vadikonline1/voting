@@ -35,6 +35,7 @@ function emptyElection() {
     start_date_vot: "",
     end_date_vot: "",
     tip_proprietate: "apartament",
+    properties_text: "",
     questions: [emptyQuestion()],
     is_active: true,
     require_signature: true,
@@ -44,6 +45,20 @@ function emptyElection() {
     results_email: "",
     notify_results_on_vote: true,
   };
+}
+
+/** One property per line: "apartament; 12" (type optional, defaults to apartament). */
+function parsePropertiesText(text) {
+  return (text || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [tipRaw = "", nrRaw = ""] = line.includes(";") ? line.split(";") : ["apartament", line];
+      const tip = (tipRaw.trim().toLowerCase() || "apartament");
+      return { tip_proprietate: tip, nr_proprietate: nrRaw.trim() };
+    })
+    .filter((p) => p.nr_proprietate);
 }
 
 function toInputDate(value) {
@@ -73,6 +88,7 @@ export default function AdminElections() {
       ...e,
       start_date_vot: toInputDate(e.start_date_vot),
       end_date_vot: toInputDate(e.end_date_vot),
+      properties_text: (e.properties || []).map((p) => `${p.tip_proprietate}; ${p.nr_proprietate}`).join("\n"),
       questions: e.questions.map((q, i) => ({
         ...q,
         number: q.number || String(i + 1),
@@ -175,6 +191,7 @@ export default function AdminElections() {
           depends_value: q.depends_on ? q.depends_value : null,
           auto_answer: q.depends_on ? q.auto_answer : null,
         })),
+        properties: parsePropertiesText(editing.properties_text),
         start_date_vot: editing.start_date_vot ? new Date(editing.start_date_vot).toISOString() : null,
         end_date_vot: editing.end_date_vot ? new Date(editing.end_date_vot).toISOString() : null,
       };
@@ -255,15 +272,29 @@ export default function AdminElections() {
               required
             />
           </label>
-          <label className="field">
-            <span>Tip proprietate</span>
-            <input
-              value={editing.tip_proprietate}
-              onChange={(e) => setEditing({ ...editing, tip_proprietate: e.target.value })}
-              placeholder="apartament"
-            />
-          </label>
         </div>
+
+        <label className="checkbox-field">
+          <input
+            type="checkbox"
+            checked={editing.allow_multiple_properties !== false}
+            onChange={(e) => setEditing({ ...editing, allow_multiple_properties: e.target.checked })}
+          />
+          <span>Permite votarea mai multor imobile (dacă este bifat, proprietarul poate vota mai multe imobile într-un singur buletin; altfel, doar unul)</span>
+        </label>
+
+        <label className="field">
+          <span>Imobilele APC (un rând pe imobil: tip; număr) — tip: apartament, debara sau parcare</span>
+          <textarea
+            rows={5}
+            value={editing.properties_text}
+            onChange={(e) => setEditing({ ...editing, properties_text: e.target.value })}
+            placeholder={"apartament; 12\ndebara; 3\nparcare; P7"}
+          />
+          <span className="muted">
+            Proprietarul bifează pe linkul APC imobilele pe care le deține. Fiecare imobil poate fi votat o singură dată.
+          </span>
+        </label>
 
         <h3>Expedierea confirmării pe email</h3>
         <div className="field-row">
@@ -367,7 +398,12 @@ export default function AdminElections() {
                 </label>
                 <label className="field" style={{ flex: 2 }}>
                   <span>Textul întrebării</span>
-                  <input value={q.text} onChange={(e) => updateQuestion(qIdx, { text: e.target.value })} required />
+                  <textarea
+                    rows={3}
+                    value={q.text}
+                    onChange={(e) => updateQuestion(qIdx, { text: e.target.value })}
+                    required
+                  />
                 </label>
                 <label className="field">
                   <span>Tip</span>

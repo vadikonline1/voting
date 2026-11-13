@@ -26,11 +26,10 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  // public ballot
-  getBallot: (uuid) => request(`/ballot/${uuid}`),
-  submitVote: (uuid, payload) =>
-    request(`/ballot/${uuid}/vote`, { method: "POST", body: JSON.stringify(payload) }),
-  receiptUrl: (uuid) => `${BASE}/ballot/${uuid}/receipt.pdf`,
+  // public ballot: fixed link /{nr_apc}
+  getApcBallot: (nrApc) => request(`/ballot/apc/${encodeURIComponent(nrApc)}`),
+  submitApcVote: (nrApc, payload) =>
+    request(`/ballot/apc/${encodeURIComponent(nrApc)}/vote`, { method: "POST", body: JSON.stringify(payload) }),
 
   // public results dashboard
   publicResults: (publicUuid) => request(`/public/results/${publicUuid}`),
@@ -55,8 +54,6 @@ export const api = {
   deleteElection: (id) => request(`/admin/elections/${id}`, { method: "DELETE" }),
 
   // voters
-  generateTokens: (payload) =>
-    request(`/admin/tokens/generate`, { method: "POST", body: JSON.stringify(payload) }),
   updateToken: (tokenId, payload) =>
     request(`/admin/tokens/${tokenId}`, { method: "PUT", body: JSON.stringify(payload) }),
   deleteToken: (tokenId) => request(`/admin/tokens/${tokenId}`, { method: "DELETE" }),

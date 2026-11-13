@@ -23,6 +23,16 @@ class Settings(BaseSettings):
     # Public base URL, used to build voter links (e.g. https://vot.aalto.md)
     public_base_url: str = os.environ.get("PUBLIC_BASE_URL", "http://localhost:8000")
 
+    # SMTP from the environment (.env). When SMTP_HOST is set these values are used instead of
+    # the panel settings (only the subject/body templates still come from the panel).
+    smtp_enabled: bool = os.environ.get("SMTP_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on")
+    smtp_host: str = os.environ.get("SMTP_HOST", "")
+    smtp_port: int = int(os.environ.get("SMTP_PORT", "587"))
+    smtp_username: str = os.environ.get("SMTP_USERNAME", "")
+    smtp_password: str = os.environ.get("SMTP_PASSWORD", "")
+    smtp_from_email: str = os.environ.get("SMTP_FROM_EMAIL", "")
+    smtp_use_tls: bool = os.environ.get("SMTP_USE_TLS", "true").strip().lower() in ("1", "true", "yes", "on")
+
     # How many days after the election's end date a voting link keeps resolving
     # (shows a "voting closed" page instead of a 404) before it is considered gone.
     link_grace_days: int = int(os.environ.get("LINK_GRACE_DAYS", "30"))

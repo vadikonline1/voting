@@ -19,6 +19,11 @@ class Question(BaseModel):
     auto_answer: Optional[str] = None
 
 
+class PropertyItem(BaseModel):
+    tip_proprietate: str = "apartament"  # apartament | debara | parcare
+    nr_proprietate: str = ""
+
+
 class ElectionIn(BaseModel):
     title: str
     description: str = ""
@@ -28,6 +33,8 @@ class ElectionIn(BaseModel):
     start_date_vot: Optional[datetime] = None
     end_date_vot: Optional[datetime] = None
     tip_proprietate: str = "apartament"
+    properties: List[PropertyItem] = Field(default_factory=list)
+    allow_multiple_properties: bool = True
     questions: List[Question] = Field(default_factory=list)
     is_active: bool = True
     require_signature: bool = True
@@ -41,6 +48,7 @@ class ElectionIn(BaseModel):
 class ElectionOut(ElectionIn):
     id: int
     public_uuid: str = ""
+    vote_url: str = ""  # PUBLIC_BASE_URL/{nr_apc}
     created_at: datetime
     updated_at: datetime
 
@@ -69,9 +77,25 @@ class BallotPublicOut(BaseModel):
     status: str  # "open" | "closed" | "voted"
 
 
+class ApcBallotOut(BaseModel):
+    """What an owner sees on the fixed public link /{nr_apc}."""
+    nr_apc: str
+    title: str
+    date_line: str
+    city_line: str
+    gdpr_text: str
+    properties: List[PropertyItem]
+    allow_multiple_properties: bool
+    questions: List[Question]
+    require_signature: bool
+    is_open: bool
+    status: str  # "open" | "closed"
+
+
 class VoteSubmission(BaseModel):
     answers: Dict[str, Any] = Field(default_factory=dict)
     voter: VoterData = Field(default_factory=VoterData)
+    properties: List[PropertyItem] = Field(default_factory=list)  # imobilele votate de proprietar
     gdpr_consent: bool = False
     signature_png_base64: Optional[str] = None
 

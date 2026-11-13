@@ -31,7 +31,7 @@ Sistem de votare online pentru buletinul de vot al Adunării Generale a membrilo
   - setări per vot pentru email: cu/fără atașament PDF, copii CC și BCC;
   - generare în masă de link-uri personalizate (nume, telefon, adresă, email, nr. proprietate pentru fiecare proprietar) sau link-uri goale de completat ulterior;
   - export CSV, **checklist** cu cine a votat și cine nu (fără a arăta conținutul votului — vot secret), rezultate agregate pe întrebare, link către dashboardul public și trimiterea manuală a raportului de rezultate.
-- Tot sistemul rulează în Docker (un singur container pentru backend + build-ul React, plus opțional Caddy pentru HTTPS automat).
+- Tot sistemul rulează în Docker (un singur container pentru backend + build-ul React, ).
 
 ## Stack tehnic
 
@@ -75,14 +75,6 @@ Aplicația pornește pe `http://localhost:8000` (sau portul din `APP_PORT`). Pan
 
 > **Notă:** `compose.yaml` poate rula și fără `env_file`, caz în care variabilele din `.env` (inclusiv `SECRET_KEY`, `ADMIN_PASSWORD` și `PUBLIC_BASE_URL`) nu sunt transmise automat containerului. În acest caz, fie adăugați-le în secțiunea `environment:` din `compose.yaml`, fie folosiți `docker compose exec app python -m app.reset_admin` pentru contul de administrare.
 
-### Cu HTTPS automat (Caddy), pentru un domeniu public precum `vot.aalto.md`
-
-```bash
-# în .env: PUBLIC_DOMAIN=vot.aalto.md, PUBLIC_BASE_URL=https://vot.aalto.md
-docker compose --profile https up -d --build
-```
-
-Caddy obține automat certificatul Let's Encrypt pentru domeniul din `PUBLIC_DOMAIN` și face proxy către container-ul `app`.
 
 ## Fluxul de utilizare
 
@@ -103,15 +95,14 @@ Caddy obține automat certificatul Let's Encrypt pentru domeniul din `PUBLIC_DOM
 backend/            FastAPI (API, modele, text legal fix, generare PDF, email, auth admin)
 frontend/            React (Vite) — pagina de vot + panoul de admin
 Dockerfile            build multi-stage (frontend + backend într-o singură imagine)
-compose.yaml          serviciul app + (opțional) Caddy pentru HTTPS
-Caddyfile             config Caddy pentru HTTPS automat
+compose.yaml          serviciul app
 .env.example          variabile de configurare
 ```
 
 ## Note de securitate
 
 - Schimbă `SECRET_KEY` și parola de administrare din `.env` înainte de a expune public aplicația. Credențialele inițiale `admin` / `admin` sunt publice prin documentație; sistemul cere schimbarea parolei la prima autentificare, dar nu lăsați instanța expusă cu parola implicită nesolicitată.
-- Parola SMTP este stocată în baza de date (editabilă din panou); pentru producție, rulează aplicația în spatele HTTPS (profilul `caddy` sau propriul reverse proxy) ca traficul (inclusiv cookie-ul de sesiune admin) să fie criptat.
+- Parola SMTP este stocată în baza de date (editabilă din panou); pentru producție, rulează aplicația în spatele HTTPS (printr-un reverse proxy propriu) ca traficul (inclusiv cookie-ul de sesiune admin) să fie criptat.
 - Fiecare link de vot poate fi folosit o singură dată; după ce s-a votat, linkul arată doar confirmarea și permite descărcarea PDF-ului, fără a permite revotarea.
 - Dashboardul public folosește un identificator aleator separat (`public_uuid`) și afișează exclusiv rezultate agregate, fără date personale. Nu îl confundați cu link-urile de vot: cine are link-ul dashboardului vede rezultatele, dar nu poate vota.
 - Raportul final se trimite o singură dată per vot; momentul trimiterii este reținut în baza de date (`results_final_email_sent_at`), deci o repornire a aplicației nu retrimite raportul.

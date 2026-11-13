@@ -1,8 +1,9 @@
+import json
 import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    Column, String, Integer, Text, DateTime, ForeignKey, Boolean
+    Column, String, Integer, Text, DateTime, ForeignKey, Boolean, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 
@@ -46,7 +47,7 @@ class SmtpSettings(Base):
             "Votul dumneavoastră pentru \"{election_title}\" a fost înregistrat cu succes "
             "la data {submitted_at}.\n\n"
             "Buletinul de vot completat și semnat este atașat acestui email, în format PDF.\n\n"
-            "Cu respect,\nComisia Electorală"
+            "Cu respect,\n{nr_apc}"
         ),
     )
 
@@ -65,6 +66,12 @@ class Election(Base):
     start_date_vot = Column(DateTime, nullable=True)  # data Adunării Generale cu prezență
     end_date_vot = Column(DateTime, nullable=True)    # termenul-limită de remitere a buletinului
     tip_proprietate = Column(String, default="apartament")
+
+    # Properties (imobile) of this APC that owners can tick on the ballot:
+    # [{"tip_proprietate": "apartament", "nr_proprietate": "12"}, ...]
+    properties_json = Column(Text, default="[]")
+    # True: an owner may vote several properties in one ballot. False: only one property per ballot.
+    allow_multiple_properties = Column(Boolean, default=True)
 
     # JSON-encoded list of decisions (Hotărâri) to vote on:
     # [{"id": "q1", "text": "...", "type": "single", "options": ["Da/Pro","Nu/Contra"], "required": true}]
@@ -101,12 +108,17 @@ class VoterToken(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     election_id = Column(Integer, ForeignKey("elections.id"), nullable=False)
 
-    # --- Per-owner data, filled in by the admin when the link is generated ---
+    # --- Per-owner data, entered by the voter on the fixed public link -------------
     nume_prenume = Column(String, default="")
     phone = Column(String, default="")
     str_locatar = Column(String, default="")   # adresa de corespondență poștală
     email = Column(String, default="")          # also used to send the confirmation + PDF
-    nr_proprietate = Column(String, default="")  # nr. unității (bunului imobil)
+
+    # Primary property (kept for backward compatibility) and the full list of properties
+    # covered by this vote: [{"tip_proprietate": "apartament", "nr_proprietate": "12"}, ...]
+    tip_proprietate = Column(String, default="apartament")
+    nr_proprietate = Column(String, default="")
+    properties_json = Column(Text, default="[]")
 
     created_at = Column(DateTime, default=utcnow)
     voted_at = Column(DateTime, nullable=True)
@@ -122,6 +134,46 @@ class VoterToken(Base):
     def label(self) -> str:
         """Backward-compatible display label."""
         return self.nume_prenume or ""
+
+    @property
+    def properties(self) -> list[dict]:
+        """All properties covered by this vote (backfilled from the legacy single field)."""
+        try:
+            items = json.loads(self.properties_json or "[]")
+        except (ValueError, TypeError):
+            items = []
+        if not isinstance(items, list):
+            items = []
+        cleaned = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            tip = (item.get("tip_proprietate") or "").strip()
+            nr = (item.get("nr_proprietate") or "").strip()
+            if tip or nr:
+                cleaned.append({"tip_proprietate": tip or "apartament", "nr_proprietate": nr})
+        if not cleaned and self.nr_proprietate:
+            cleaned = [{
+                "tip_proprietate": self.tip_proprietate or "apartament",
+                "nr_proprietate": self.nr_proprietate,
+            }]
+        return cleaned
+
+
+class VoterProperty(Base):
+    """One property covered by a vote. The unique constraint guarantees that the same
+    property (type + number) cannot be voted twice within the same election."""
+    __tablename__ = "voter_properties"
+    __table_args__ = (
+        UniqueConstraint("election_id", "tip_proprietate", "nr_proprietate",
+                         name="uq_voter_property_election"),
+    )
+
+    id = Column(Integer, primary_key=True)
+    election_id = Column(Integer, ForeignKey("elections.id"), nullable=False)
+    token_id = Column(String, ForeignKey("voter_tokens.id"), nullable=False)
+    tip_proprietate = Column(String, nullable=False)  # apartament | debara | parcare
+    nr_proprietate = Column(String, nullable=False)
 
 
 class Vote(Base):

@@ -49,13 +49,17 @@ def build_ballot_texts(election, voter) -> dict:
     phone = (voter.phone if voter else "") or PLACEHOLDER
     str_locatar = (voter.str_locatar if voter else "") or PLACEHOLDER
     email = (voter.email if voter else "") or PLACEHOLDER
-    nr_proprietate = (voter.nr_proprietate if voter else "") or PLACEHOLDER
+    props = voter.properties if voter else []
+    if props:
+        props_text = ", ".join(f"{p['tip_proprietate']} cu nr {p['nr_proprietate']}" for p in props)
+    else:
+        props_text = f"{tip_proprietate} cu nr {PLACEHOLDER}"
 
     paragraph2 = (
         f"Dl/Dna {nume_prenume}, tel. {phone}, adresa de corespondență poștală "
         f"{str_locatar}, adresa electronică {email}, în calitate de membru al "
         f"Asociației de Proprietari din Condominiu nr. {nr_apc}, proprietar al unității (bunului "
-        f"imobil) din: {str_apc}, {tip_proprietate} cu nr {nr_proprietate}, îmi exprim votul "
+        f"imobil) din: {str_apc}, {props_text}, îmi exprim votul "
         "(Da/Pro, Nu/Contra) pentru adoptarea următoarelor Hotărâri:"
     )
 

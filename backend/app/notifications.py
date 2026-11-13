@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from . import models
 from .config import settings
 from .email_utils import send_email
+from .smtp_config import get_smtp
 from .results import _aware, compute_results, dashboard_url
 from .results_email import build_results_email_html, build_results_email_text
 
@@ -15,7 +16,7 @@ def send_results_email(db, election: models.Election, *, final: bool = False) ->
     if not recipients:
         return False, "Nu este configurat un email APC pentru rezultate."
 
-    smtp = db.query(models.SmtpSettings).first()
+    smtp, _source = get_smtp(db)
     if not smtp or not smtp.enabled:
         return False, "SMTP este dezactivat sau neconfigurat."
 
@@ -28,6 +29,7 @@ def send_results_email(db, election: models.Election, *, final: bool = False) ->
         subject=subject,
         text_body=build_results_email_text(election, results, dashboard_url=url, final=final),
         html_body=build_results_email_html(election, results, dashboard_url=url, final=final),
+        from_name=election.nr_apc or None,
     )
     if ok and final:
         election.results_final_email_sent_at = datetime.now(timezone.utc)

@@ -16,6 +16,7 @@ from ..config import settings
 from ..database import get_db
 from ..notifications import send_results_email
 from ..results import compute_results, dashboard_url
+from ..smtp_config import get_smtp
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -83,6 +84,38 @@ def change_password(
 
 
 # -------------------------------------------------------------- helpers ----
+def _vote_url(nr_apc: str | None) -> str:
+    base = settings.public_base_url.rstrip("/")
+    return f"{base}/{nr_apc}" if nr_apc else ""
+
+
+def _election_properties(e: models.Election) -> list[dict]:
+    try:
+        items = json.loads(e.properties_json or "[]")
+    except (ValueError, TypeError):
+        return []
+    return [i for i in items if isinstance(i, dict) and i.get("nr_proprietate")]
+
+
+def _ensure_single_active(db: Session, payload: schemas.ElectionIn, election_id: int | None):
+    """Each APC has one active vote: the fixed link /{nr_apc} opens it."""
+    if not payload.is_active:
+        return
+    if not (payload.nr_apc or "").strip():
+        raise HTTPException(status_code=400, detail="Completați numărul APC înainte de a activa votul.")
+    query = db.query(models.Election).filter(
+        models.Election.nr_apc == payload.nr_apc.strip(),
+        models.Election.is_active.is_(True),
+    )
+    if election_id is not None:
+        query = query.filter(models.Election.id != election_id)
+    if query.first():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Există deja un vot activ pentru APC nr. {payload.nr_apc}. Dezactivați-l mai întâi.",
+        )
+
+
 def _election_to_out(e: models.Election) -> schemas.ElectionOut:
     return schemas.ElectionOut(
         id=e.id,
@@ -94,6 +127,9 @@ def _election_to_out(e: models.Election) -> schemas.ElectionOut:
         start_date_vot=e.start_date_vot,
         end_date_vot=e.end_date_vot,
         tip_proprietate=e.tip_proprietate or "apartament",
+        properties=[schemas.PropertyItem(**p) for p in _election_properties(e)],
+        allow_multiple_properties=bool(e.allow_multiple_properties),
+        vote_url=_vote_url(e.nr_apc),
         questions=json.loads(e.questions_json or "[]"),
         is_active=e.is_active,
         require_signature=e.require_signature,
@@ -111,12 +147,18 @@ def _election_to_out(e: models.Election) -> schemas.ElectionOut:
 def _apply_election_fields(election: models.Election, payload: schemas.ElectionIn):
     election.title = payload.title
     election.description = payload.description
-    election.nr_apc = payload.nr_apc
+    election.nr_apc = payload.nr_apc.strip()
     election.str_apc = payload.str_apc
     election.oras = payload.oras
     election.start_date_vot = payload.start_date_vot
     election.end_date_vot = payload.end_date_vot
     election.tip_proprietate = payload.tip_proprietate
+    election.allow_multiple_properties = bool(payload.allow_multiple_properties)
+    election.properties_json = json.dumps(
+        [{"tip_proprietate": p.tip_proprietate, "nr_proprietate": p.nr_proprietate.strip()}
+         for p in payload.properties if p.nr_proprietate.strip()],
+        ensure_ascii=False,
+    )
     election.questions_json = json.dumps([q.model_dump() for q in payload.questions], ensure_ascii=False)
     election.is_active = payload.is_active
     election.require_signature = payload.require_signature
@@ -136,6 +178,7 @@ def list_elections(username: str = Depends(require_admin), db: Session = Depends
 
 @router.post("/elections", response_model=schemas.ElectionOut)
 def create_election(payload: schemas.ElectionIn, username: str = Depends(require_admin), db: Session = Depends(get_db)):
+    _ensure_single_active(db, payload, None)
     election = models.Election(public_uuid=uuid.uuid4().hex)
     _apply_election_fields(election, payload)
     db.add(election)
@@ -149,6 +192,7 @@ def update_election(election_id: int, payload: schemas.ElectionIn, username: str
     election = db.query(models.Election).get(election_id)
     if not election:
         raise HTTPException(status_code=404, detail="Votul nu a fost găsit")
+    _ensure_single_active(db, payload, election.id)
     _apply_election_fields(election, payload)
     election.updated_at = datetime.now(timezone.utc)
     db.commit()
@@ -167,54 +211,6 @@ def delete_election(election_id: int, username: str = Depends(require_admin), db
 
 
 # ---------------------------------------------------------- voter tokens --
-def _token_url(token_id: str) -> str:
-    return f"{settings.public_base_url.rstrip('/')}/{token_id}"
-
-
-@router.post("/tokens/generate")
-def generate_tokens(payload: schemas.TokenGenerateRequest, username: str = Depends(require_admin), db: Session = Depends(get_db)):
-    election = db.query(models.Election).get(payload.election_id)
-    if not election:
-        raise HTTPException(status_code=404, detail="Votul nu a fost găsit")
-
-    created = []
-    if payload.rows:
-        for row in payload.rows[:5000]:
-            token = models.VoterToken(
-                election_id=election.id,
-                nume_prenume=row.nume_prenume.strip(),
-                phone=row.phone.strip(),
-                str_locatar=row.str_locatar.strip(),
-                email=row.email.strip(),
-                nr_proprietate=row.nr_proprietate.strip(),
-            )
-            db.add(token)
-            created.append(token)
-    else:
-        count = max(1, min(payload.count or 1, 5000))
-        for _ in range(count):
-            token = models.VoterToken(election_id=election.id)
-            db.add(token)
-            created.append(token)
-
-    db.commit()
-    return {
-        "ok": True,
-        "tokens": [
-            {
-                "id": t.id,
-                "nume_prenume": t.nume_prenume,
-                "phone": t.phone,
-                "str_locatar": t.str_locatar,
-                "email": t.email,
-                "nr_proprietate": t.nr_proprietate,
-                "url": _token_url(t.id),
-            }
-            for t in created
-        ],
-    }
-
-
 @router.put("/tokens/{token_id}")
 def update_token(token_id: str, payload: schemas.VoterTokenUpdate, username: str = Depends(require_admin), db: Session = Depends(get_db)):
     token = db.query(models.VoterToken).filter(models.VoterToken.id == token_id).first()
@@ -259,8 +255,7 @@ def checklist(election_id: int, username: str = Depends(require_admin), db: Sess
             "phone": t.phone,
             "str_locatar": t.str_locatar,
             "email": t.email,
-            "nr_proprietate": t.nr_proprietate,
-            "url": _token_url(t.id),
+            "properties": t.properties,
             "has_voted": t.has_voted,
             "voted_at": t.voted_at,
             "email_sent": bool(t.vote.email_sent) if t.vote else False,
@@ -269,7 +264,13 @@ def checklist(election_id: int, username: str = Depends(require_admin), db: Sess
     ]
     total = len(rows)
     voted = sum(1 for r in rows if r["has_voted"])
-    return {"election_title": election.title, "total": total, "voted": voted, "rows": rows}
+    return {
+        "election_title": election.title,
+        "vote_url": _vote_url(election.nr_apc),
+        "total": total,
+        "voted": voted,
+        "rows": rows,
+    }
 
 
 @router.get("/elections/{election_id}/tokens.csv")
@@ -282,10 +283,11 @@ def export_tokens_csv(election_id: int, username: str = Depends(require_admin), 
     )
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["nume_prenume", "phone", "str_locatar", "email", "nr_proprietate", "url", "has_voted", "voted_at"])
+    writer.writerow(["nume_prenume", "phone", "str_locatar", "email", "imobile", "has_voted", "voted_at"])
     for t in tokens:
         writer.writerow([
-            t.nume_prenume, t.phone, t.str_locatar, t.email, t.nr_proprietate, _token_url(t.id),
+            t.nume_prenume, t.phone, t.str_locatar, t.email,
+            "; ".join(f"{p['tip_proprietate']} {p['nr_proprietate']}" for p in t.properties),
             "DA" if t.has_voted else "NU", t.voted_at.isoformat() if t.voted_at else "",
         ])
     return Response(
@@ -335,8 +337,8 @@ def send_results(
 
 # --------------------------------------------------------------- smtp -----
 @router.get("/smtp", response_model=schemas.SmtpSettingsOut)
-def get_smtp(username: str = Depends(require_admin), db: Session = Depends(get_db)):
-    smtp = db.query(models.SmtpSettings).first()
+def get_smtp_settings(username: str = Depends(require_admin), db: Session = Depends(get_db)):
+    smtp, _source = get_smtp(db)
     return schemas.SmtpSettingsOut(
         enabled=smtp.enabled, host=smtp.host, port=smtp.port, username=smtp.username,
         has_password=bool(smtp.password), from_email=smtp.from_email, from_name=smtp.from_name,
@@ -375,7 +377,7 @@ def test_smtp(to_email: str, username: str = Depends(require_admin), db: Session
     import tempfile, os
     from reportlab.pdfgen import canvas as rl_canvas
 
-    smtp = db.query(models.SmtpSettings).first()
+    smtp, _source = get_smtp(db)
     tmp_path = os.path.join(tempfile.gettempdir(), "smtp-test.pdf")
     c = rl_canvas.Canvas(tmp_path)
     c.drawString(100, 700, "Test email - sistem de vot")
