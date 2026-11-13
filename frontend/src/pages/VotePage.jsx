@@ -406,53 +406,61 @@ export default function VotePage() {
           </label>
         </section>
 
-        <section className="voter-section">
+        <section className="voter-section property-section">
           <h2 className="section-title">Imobilele pe care le dețineți *</h2>
-          <p className="muted section-hint">
-            Bifați toate imobilele pentru care dați votul. Votul se aplică la fiecare imobil bifat;
-            un imobil poate fi votat o singură dată.
-          </p>
-          <p className="muted section-hint">
+          <p className="property-help">
+            Apăsați pe tipul imobilului pe care îl dețineți, apoi scrieți numărul lui.
             {allowMultiple
-              ? "Puteți selecta mai multe imobile."
-              : "Acest vot permite selectarea unui singur imobil."}
+              ? " Dacă aveți mai multe imobile de același tip, apăsați butonul „Adaugă”."
+              : " Puteți alege un singur imobil."}
           </p>
-          <div className="property-grid">
+          <div className="property-rows">
             {propertyTypes.map((tip) => {
               const ticked = selectedTypes.includes(tip);
               const disabled = !allowMultiple && selectedTypes.length > 0 && !ticked;
               const rows = numbers[tip] && numbers[tip].length ? numbers[tip] : [""];
+              const name = tipLabel(tip);
               return (
-                <div key={tip} className={`property-card ${ticked ? "property-card-on" : ""}`}>
-                  <label className="checkbox-field">
-                    <input
-                      type="checkbox"
-                      checked={ticked}
-                      disabled={disabled}
-                      onChange={() => toggleType(tip)}
-                    />
-                    <span className="property-title">{tipLabel(tip)}</span>
-                  </label>
+                <div key={tip} className={`property-row ${ticked ? "property-row-on" : ""}`}>
+                  <button
+                    type="button"
+                    className="property-toggle"
+                    aria-pressed={ticked}
+                    disabled={disabled}
+                    onClick={() => toggleType(tip)}
+                  >
+                    <span className="property-box" aria-hidden="true">{ticked ? "✓" : ""}</span>
+                    <span className="property-name">{name}</span>
+                  </button>
                   {ticked && (
-                    <div className="property-numbers">
+                    <div className="property-fields">
                       {rows.map((nr, idx) => (
-                        <div key={idx} className="property-number-row">
-                          <input
-                            value={nr}
-                            onChange={(e) => setNumber(tip, idx, e.target.value)}
-                            placeholder="Introduceți numărul"
-                            maxLength={30}
-                          />
-                          {rows.length > 1 && (
-                            <button type="button" className="btn-link" onClick={() => removeNumber(tip, idx)}>
-                              Șterge
-                            </button>
-                          )}
+                        <div key={idx} className="property-field">
+                          <label className="property-field-label" htmlFor={`prop-${tip}-${idx}`}>
+                            Numărul imobilului{rows.length > 1 ? ` ${idx + 1}` : ""}
+                          </label>
+                          <div className="property-input-row">
+                            <input
+                              id={`prop-${tip}-${idx}`}
+                              className="property-input"
+                              value={nr}
+                              onChange={(e) => setNumber(tip, idx, e.target.value)}
+                              placeholder="Scrieți numărul aici"
+                              inputMode="text"
+                              autoComplete="off"
+                              maxLength={30}
+                            />
+                            {rows.length > 1 && (
+                              <button type="button" className="property-remove" onClick={() => removeNumber(tip, idx)}>
+                                Șterge
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                       {allowMultiple && (
-                        <button type="button" className="btn-link" onClick={() => addNumber(tip)}>
-                          + Adaugă alt imobil de tip {(TIP_LABELS[tip] || tip).toLowerCase()}
+                        <button type="button" className="property-add" onClick={() => addNumber(tip)}>
+                          + Adaugă alt imobil de tip {name.toLowerCase()}
                         </button>
                       )}
                     </div>
@@ -461,7 +469,7 @@ export default function VotePage() {
               );
             })}
           </div>
-          {voterErrors.properties && <span className="field-error">{voterErrors.properties}</span>}
+          {voterErrors.properties && <p className="property-error">{voterErrors.properties}</p>}
         </section>
 
         <section className="questions-section">
