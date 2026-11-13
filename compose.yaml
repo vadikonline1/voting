@@ -3,8 +3,6 @@ services:
     build: .
     image: voting-app:latest
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       - DATABASE_URL=sqlite:////data/voting.db
       - DATA_DIR=/data
