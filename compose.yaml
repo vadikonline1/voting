@@ -6,6 +6,20 @@ services:
     environment:
       - DATABASE_URL=sqlite:////data/voting.db
       - DATA_DIR=/data
+      # Values are read from .env on the host (docker compose substitutes them here).
+      - SECRET_KEY=${SECRET_KEY:-change-me-please-super-secret}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
+      - ADMIN_RESET_PASSWORD=${ADMIN_RESET_PASSWORD:-false}
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:8000}
+      - LINK_GRACE_DAYS=${LINK_GRACE_DAYS:-30}
+      - SMTP_ENABLED=${SMTP_ENABLED:-false}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USERNAME=${SMTP_USERNAME:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL:-}
+      - SMTP_USE_TLS=${SMTP_USE_TLS:-true}
     volumes:
       - voting_data:/data
     ports:

@@ -73,7 +73,7 @@ Aplicația pornește pe `http://localhost:8000` (sau portul din `APP_PORT`). Pan
   Autentificați-vă cu `ADMIN_PASSWORD`, schimbați parola din panou, apoi puneți `ADMIN_RESET_PASSWORD=false`. Resetarea se execută o singură dată (marker `/data/.admin-reset-used`); pentru o nouă resetare, ștergeți markerul:
   `docker compose exec app rm /data/.admin-reset-used`.
 
-> **Notă:** `compose.yaml` poate rula și fără `env_file`, caz în care variabilele din `.env` (inclusiv `SECRET_KEY`, `ADMIN_PASSWORD` și `PUBLIC_BASE_URL`) nu sunt transmise automat containerului. În acest caz, fie adăugați-le în secțiunea `environment:` din `compose.yaml`, fie folosiți `docker compose exec app python -m app.reset_admin` pentru contul de administrare.
+> **Notă:** `compose.yaml` transmite containerului variabilele din `.env` (`SECRET_KEY`, `ADMIN_*`, `PUBLIC_BASE_URL`, `LINK_GRACE_DAYS`, `SMTP_*`). Dacă modificați `.env`, reporniți cu `docker compose up -d` ca modificările să ajungă în container. Linkul de vot și linkul dashboardului folosesc `PUBLIC_BASE_URL`.
 
 
 ## Fluxul de utilizare

@@ -245,7 +245,11 @@ h2 { font-size: 1.25rem; }
 .admin-nav nav a.active, .admin-nav nav a:hover { background: #26324a; color: #fff; }
 .admin-nav-footer { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; border-top: 1px solid #2a3650; padding-top: 14px; }
 .admin-nav-footer .btn-link { color: #9db4e0; }
-.admin-content { flex: 1; padding: 28px 36px; max-width: 980px; }
+.admin-content {
+    flex: 1;
+    padding: 28px 36px;
+    max-width: fit-content;
+}
 
 .elections-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
 .election-card h3 { margin-top: 0; }
