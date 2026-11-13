@@ -132,6 +132,9 @@ export default function AdminSmtp() {
       <p className="muted">
         Variabile: <code>{"{voter_name}"}</code> <code>{"{election_title}"}</code> <code>{"{submitted_at}"}</code>{" "}
         <code>{"{nr_apc}"}</code> — expeditorul este întotdeauna numărul APC.
+        <br />
+        <code>{"{buletin}"}</code> — locul în care se inserează buletinul completat (în HTML, același conținut ca PDF-ul).
+        Dacă lipsește, buletinul este adăugat după text.
       </p>
 
       {error && <p className="error">{error}</p>}

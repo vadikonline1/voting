@@ -228,7 +228,6 @@ def _send_confirmation(db, election, token, effective, submitted_at, receipt_pat
         submitted_at=submitted_str,
         nr_apc=election.nr_apc or "",
     )
-    intro_text = render_template(smtp.body_template, values)
     ok, _info = send_confirmation_email(
         smtp,
         to_email=to_email,
@@ -240,11 +239,13 @@ def _send_confirmation(db, election, token, effective, submitted_at, receipt_pat
         pdf_path=receipt_path,
         text_body=build_email_text(
             election=election, voter=token, answers=effective, submitted_at=submitted_at,
-            intro_text=intro_text, receipt_url=receipt_url, attach_pdf=attach_pdf,
+            body_template=smtp.body_template, values=values,
+            receipt_url=receipt_url, attach_pdf=attach_pdf,
         ),
         html_body=build_email_html(
             election=election, voter=token, answers=effective, submitted_at=submitted_at,
-            intro_text=intro_text, receipt_url=receipt_url, attach_pdf=attach_pdf,
+            body_template=smtp.body_template, values=values,
+            receipt_url=receipt_url, attach_pdf=attach_pdf,
         ),
         attach_pdf=attach_pdf,
         nr_apc=election.nr_apc or "",

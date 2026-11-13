@@ -46,7 +46,7 @@ class SmtpSettings(Base):
             "Bună {voter_name},\n\n"
             "Votul dumneavoastră pentru \"{election_title}\" a fost înregistrat cu succes "
             "la data {submitted_at}.\n\n"
-            "Buletinul de vot completat și semnat este atașat acestui email, în format PDF.\n\n"
+            "{buletin}\n\n"
             "Cu respect,\n{nr_apc}"
         ),
     )
