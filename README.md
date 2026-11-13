@@ -48,7 +48,14 @@ Aplicația pornește pe `http://localhost:8000` (sau portul din `APP_PORT`). Pan
 
 - Credențiale inițiale simple: **`admin` / `admin`** (sau cele din `ADMIN_USERNAME` / `ADMIN_PASSWORD`).
 - La prima autentificare, panoul **vă obligă să schimbați parola** (minimum 8 caractere) înainte de a putea administra voturile; până atunci, toate operațiunile din API sunt blocate (cu excepția schimbării parolei).
-- Dacă baza de date există deja și nu mai știți parola (de exemplu, ați schimbat `ADMIN_PASSWORD` în `.env`, dar contul fusese deja creat), folosiți resetarea unică:
+- Dacă baza de date există deja și nu mai știți parola (de exemplu, ați schimbat `ADMIN_PASSWORD` în `.env`, dar contul fusese deja creat), o puteți reseta din container, fără să depindeți de `.env`:
+
+  ```bash
+  docker compose exec app python -m app.reset_admin --password "parola-temporara"
+  # apoi autentificare cu această parolă și schimbare din panou
+  ```
+
+- Alternativ, dacă serviciul folosește `env_file` (variantele anterioare de `compose.yaml`), resetarea se poate face și din `.env`:
 
   ```bash
   # în .env:
@@ -59,6 +66,8 @@ Aplicația pornește pe `http://localhost:8000` (sau portul din `APP_PORT`). Pan
 
   Autentificați-vă cu `ADMIN_PASSWORD`, schimbați parola din panou, apoi puneți `ADMIN_RESET_PASSWORD=false`. Resetarea se execută o singură dată (marker `/data/.admin-reset-used`); pentru o nouă resetare, ștergeți markerul:
   `docker compose exec app rm /data/.admin-reset-used`.
+
+> **Notă:** `compose.yaml` poate rula și fără `env_file`, caz în care variabilele din `.env` (inclusiv `SECRET_KEY`, `ADMIN_PASSWORD` și `PUBLIC_BASE_URL`) nu sunt transmise automat containerului. În acest caz, fie adăugați-le în secțiunea `environment:` din `compose.yaml`, fie folosiți `docker compose exec app python -m app.reset_admin` pentru contul de administrare.
 
 ### Cu HTTPS automat (Caddy), pentru un domeniu public precum `vot.aalto.md`
 
