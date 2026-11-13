@@ -1,9 +1,12 @@
-"""Email sending using the SMTP settings configured from the admin panel.
-Supports an optional PDF attachment, an HTML alternative, and CC/BCC copies."""
+"""Email sending using the SMTP settings (panel or .env).
+Supports an optional PDF attachment, an HTML alternative, CC/BCC copies, and keeps a log of every
+email (sender, recipients, subject and headers) so the admin can see what was sent and to whom."""
 import re
 import smtplib
 import ssl
+from datetime import datetime, timezone
 from email.message import EmailMessage
+from email.utils import formatdate, make_msgid
 
 from . import models
 
@@ -43,6 +46,47 @@ def mask_email(address: str) -> str:
     return local[:2] + "****" + local[-2:] + "@" + domain
 
 
+def _headers_text(sender: str, to: list[str], cc: list[str], bcc: list[str], subject: str,
+                  date: str, message_id: str, attachment: str) -> str:
+    lines = [f"From: {sender}", f"To: {', '.join(to)}"]
+    if cc:
+        lines.append(f"Cc: {', '.join(cc)}")
+    if bcc:
+        lines.append(f"Bcc (doar în transport, nu apare în email): {', '.join(bcc)}")
+    lines += [f"Subject: {subject}", f"Date: {date}", f"Message-ID: {message_id}"]
+    if attachment:
+        lines.append(f"Attachment: {attachment}")
+    return "\n".join(lines)
+
+
+def _record(db, *, election_id, kind: str, ok: bool, info: str, sender: str, to: list[str],
+            cc: list[str], bcc: list[str], subject: str, text_body: str, headers: str,
+            attachment: str) -> None:
+    """Store one log row. Logging must never break sending, so errors are only printed."""
+    if db is None:
+        return
+    try:
+        db.add(models.EmailLog(
+            election_id=election_id,
+            kind=kind,
+            status="trimis" if ok else "eșuat",
+            info=(info or "")[:500],
+            from_addr=sender,
+            to_addr=", ".join(to),
+            cc=", ".join(cc),
+            bcc=", ".join(bcc),
+            subject=subject[:300],
+            headers=headers,
+            attachment=attachment,
+            preview=(text_body or "").strip()[:400],
+            created_at=datetime.now(timezone.utc),
+        ))
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        print(f"[email-log] Nu am putut salva jurnalul emailului: {exc}")
+
+
 def send_email(
     smtp: models.SmtpSettings,
     *,
@@ -56,25 +100,45 @@ def send_email(
     attach_pdf: bool = False,
     from_name: str | None = None,
     attachment_name: str = "buletin-de-vot.pdf",
+    db=None,
+    election_id: int | None = None,
+    kind: str = "",
 ) -> tuple[bool, str]:
     """Send one email. Returns (ok, info). BCC addresses are only used in the SMTP envelope.
-    `from_name` is the sender display name: always the APC number, never the panel value."""
-    if not smtp.enabled:
-        return False, "SMTP dezactivat"
-    if not smtp.host:
-        return False, "Lipsește hostul SMTP"
-
+    `from_name` is the sender display name: always the APC number, never the panel value.
+    When `db` is given, the email (headers included) is written to the email log."""
+    name = (from_name or "").strip()
+    sender = f"{name} <{smtp.from_email}>" if name else (smtp.from_email or "")
     to_list = parse_addresses(to)
-    if not to_list:
-        return False, "Adresa destinatarului nu este validă"
     cc_list = parse_addresses(cc)
     bcc_list = parse_addresses(bcc)
+    attachment = attachment_name if attach_pdf else ""
+    date = formatdate(localtime=False)
+    domain = smtp.from_email.split("@")[-1] if smtp.from_email and "@" in smtp.from_email else "localhost"
+    message_id = make_msgid(domain=domain)
+
+    def done(ok: bool, info: str) -> tuple[bool, str]:
+        _record(
+            db, election_id=election_id, kind=kind, ok=ok, info=info, sender=sender,
+            to=to_list, cc=cc_list, bcc=bcc_list, subject=subject, text_body=text_body,
+            headers=_headers_text(sender, to_list, cc_list, bcc_list, subject, date, message_id, attachment),
+            attachment=attachment,
+        )
+        return ok, info
+
+    if not smtp.enabled:
+        return done(False, "SMTP dezactivat")
+    if not smtp.host:
+        return done(False, "Lipsește hostul SMTP")
+    if not to_list:
+        return done(False, "Adresa destinatarului nu este validă")
 
     msg = EmailMessage()
     msg["Subject"] = subject
-    name = (from_name or "").strip()
-    msg["From"] = f"{name} <{smtp.from_email}>" if name else smtp.from_email
+    msg["From"] = sender
     msg["To"] = ", ".join(to_list)
+    msg["Date"] = date
+    msg["Message-ID"] = message_id
     if cc_list:
         msg["Cc"] = ", ".join(cc_list)
     msg.set_content(text_body)
@@ -83,7 +147,7 @@ def send_email(
 
     if attach_pdf:
         if not pdf_path:
-            return False, "Lipsește PDF-ul care trebuie atașat"
+            return done(False, "Lipsește PDF-ul care trebuie atașat")
         try:
             with open(pdf_path, "rb") as fh:
                 msg.add_attachment(
@@ -91,7 +155,7 @@ def send_email(
                     filename=attachment_name,
                 )
         except OSError as exc:
-            return False, f"Nu am putut citi PDF-ul: {exc}"
+            return done(False, f"Nu am putut citi PDF-ul: {exc}")
 
     recipients = list(dict.fromkeys([*to_list, *cc_list, *bcc_list]))
 
@@ -107,9 +171,9 @@ def send_email(
                 if smtp.username:
                     server.login(smtp.username, smtp.password)
                 server.send_message(msg, to_addrs=recipients)
-        return True, "OK"
+        return done(True, "OK")
     except Exception as exc:  # noqa: BLE001 - we want to report the reason back to the admin
-        return False, str(exc)
+        return done(False, str(exc))
 
 
 def send_confirmation_email(
@@ -127,6 +191,9 @@ def send_confirmation_email(
     attach_pdf: bool = True,
     nr_apc: str = "",
     attachment_name: str = "buletin-de-vot.pdf",
+    db=None,
+    election_id: int | None = None,
+    kind: str = "confirmare vot",
 ) -> tuple[bool, str]:
     values = dict(
         voter_name=voter_name or "votant",
@@ -149,4 +216,7 @@ def send_confirmation_email(
         attach_pdf=attach_pdf,
         from_name=nr_apc or None,
         attachment_name=attachment_name,
+        db=db,
+        election_id=election_id,
+        kind=kind,
     )

@@ -250,6 +250,9 @@ def _send_confirmation(db, election, token, effective, submitted_at, receipt_pat
         attach_pdf=attach_pdf,
         nr_apc=election.nr_apc or "",
         attachment_name=ballot_filename(election, token, submitted_at),
+        db=db,
+        election_id=election.id,
+        kind="confirmare vot",
     )
     return ok, recipient
 

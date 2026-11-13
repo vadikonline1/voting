@@ -15,6 +15,14 @@ export default function AdminElectionDetail() {
   const [sendStatus, setSendStatus] = useState("");
   const [sending, setSending] = useState(false);
   const [newEnd, setNewEnd] = useState("");
+  const [emailRows, setEmailRows] = useState(null);
+  const [openHeaders, setOpenHeaders] = useState(null);
+
+  useEffect(() => {
+    if (tab === "emails") {
+      api.emailLog(id).then(setEmailRows).catch((e) => setError(e.message));
+    }
+  }, [tab, id]);
   const [extendStatus, setExtendStatus] = useState("");
 
   async function handleExtend(e) {
@@ -85,6 +93,9 @@ export default function AdminElectionDetail() {
         </button>
         <button className={tab === "results" ? "tab active" : "tab"} onClick={() => setTab("results")}>
           Rezultate
+        </button>
+        <button className={tab === "emails" ? "tab active" : "tab"} onClick={() => setTab("emails")}>
+          Emailuri trimise
         </button>
       </div>
 
@@ -185,6 +196,73 @@ export default function AdminElectionDetail() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {tab === "emails" && (
+        <div className="card">
+          <div className="actions-row">
+            <h3>Emailuri trimise pentru acest vot</h3>
+            <button className="btn" onClick={() => api.emailLog(id).then(setEmailRows).catch((e) => setError(e.message))}>
+              Reîmprospătează
+            </button>
+          </div>
+          <p className="muted">
+            Fiecare email trimis de sistem: cine l-a trimis, către cine, subiectul și headerele complete.
+          </p>
+          {emailRows === null && <p className="muted">Se încarcă...</p>}
+          {emailRows && emailRows.length === 0 && <p className="muted">Nu a fost trimis încă niciun email.</p>}
+          {emailRows && emailRows.length > 0 && (
+            <div className="table-wrap">
+              <table className="admin-table email-table">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Tip</th>
+                    <th>Status</th>
+                    <th>De la</th>
+                    <th>Către</th>
+                    <th>Cc / Bcc</th>
+                    <th>Subiect</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {emailRows.map((r) => (
+                    <tr key={r.id}>
+                      <td data-label="Data">{r.created_at ? new Date(r.created_at).toLocaleString("ro-RO") : "—"}</td>
+                      <td data-label="Tip">{r.kind || "—"}</td>
+                      <td data-label="Status">
+                        <span className={`status-pill ${r.status === "trimis" ? "status-on" : "status-off"}`}>
+                          {r.status}
+                        </span>
+                        {r.status !== "trimis" && r.info && <div className="muted email-info">{r.info}</div>}
+                      </td>
+                      <td data-label="De la">{r.from || "—"}</td>
+                      <td data-label="Către">{r.to || "—"}</td>
+                      <td data-label="Cc / Bcc">
+                        {[r.cc && `Cc: ${r.cc}`, r.bcc && `Bcc: ${r.bcc}`].filter(Boolean).join(" · ") || "—"}
+                      </td>
+                      <td data-label="Subiect">
+                        {r.subject || "—"}
+                        <div>
+                          <button
+                            type="button"
+                            className="btn-link"
+                            onClick={() => setOpenHeaders(openHeaders === r.id ? null : r.id)}
+                          >
+                            {openHeaders === r.id ? "Ascunde headerele" : "Vezi headerele"}
+                          </button>
+                        </div>
+                        {openHeaders === r.id && (
+                          <pre className="email-headers">{r.headers}</pre>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 

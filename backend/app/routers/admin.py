@@ -334,6 +334,36 @@ def export_tokens_csv(election_id: int, username: str = Depends(require_admin), 
 
 
 # ------------------------------------------------------------------ results
+@router.get("/elections/{election_id}/emails")
+def email_log(election_id: int, username: str = Depends(require_admin), db: Session = Depends(get_db)):
+    """Log of the emails sent for this vote: sender, recipients, subject and headers."""
+    rows = (
+        db.query(models.EmailLog)
+        .filter(models.EmailLog.election_id == election_id)
+        .order_by(models.EmailLog.created_at.desc())
+        .limit(300)
+        .all()
+    )
+    return [
+        {
+            "id": r.id,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "kind": r.kind,
+            "status": r.status,
+            "info": r.info,
+            "from": r.from_addr,
+            "to": r.to_addr,
+            "cc": r.cc,
+            "bcc": r.bcc,
+            "subject": r.subject,
+            "headers": r.headers,
+            "attachment": r.attachment,
+            "preview": r.preview,
+        }
+        for r in rows
+    ]
+
+
 @router.get("/elections/{election_id}/results")
 def results(election_id: int, username: str = Depends(require_admin), db: Session = Depends(get_db)):
     election = db.query(models.Election).get(election_id)

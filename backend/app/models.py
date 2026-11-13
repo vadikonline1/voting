@@ -179,6 +179,26 @@ class VoterProperty(Base):
     nr_proprietate = Column(String, nullable=False)
 
 
+class EmailLog(Base):
+    """Every email the system sends for an election: who sent it, to whom, and the headers."""
+    __tablename__ = "email_logs"
+
+    id = Column(Integer, primary_key=True)
+    election_id = Column(Integer, ForeignKey("elections.id"), nullable=True, index=True)
+    created_at = Column(DateTime, default=utcnow)
+    kind = Column(String, default="")          # confirmare vot | raport rezultate | reamintire expirare | ...
+    status = Column(String, default="")        # trimis | eșuat
+    info = Column(Text, default="")            # SMTP answer or error reason
+    from_addr = Column(String, default="")
+    to_addr = Column(String, default="")
+    cc = Column(String, default="")
+    bcc = Column(String, default="")
+    subject = Column(String, default="")
+    headers = Column(Text, default="")
+    attachment = Column(String, default="")
+    preview = Column(Text, default="")
+
+
 class Vote(Base):
     __tablename__ = "votes"
 

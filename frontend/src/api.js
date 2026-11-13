@@ -64,6 +64,9 @@ export const api = {
   extendElection: (id, endIso) =>
     request(`/admin/elections/${id}/extend?end_date=${encodeURIComponent(endIso)}`, { method: "POST" }),
 
+  // email log: what was sent, to whom, with headers
+  emailLog: (id) => request(`/admin/elections/${id}/emails`),
+
   // results
   results: (electionId) => request(`/admin/elections/${electionId}/results`),
   sendResults: (electionId, final = false) =>

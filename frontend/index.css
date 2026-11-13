@@ -3,3 +3,19 @@
 .extend-card { border-left: 4px solid var(--primary); }
 .extend-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; max-width: 520px; }
 .extend-row input { flex: 1 1 220px; min-height: 42px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font: inherit; }
+
+/* --- Admin: email log ----------------------------------------------------- */
+.email-table td { vertical-align: top; }
+.email-info { font-size: 0.8rem; margin-top: 4px; max-width: 220px; word-break: break-word; }
+.email-headers {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  background: #f7f8fb;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-width: 420px;
+}

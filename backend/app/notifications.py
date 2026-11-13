@@ -34,6 +34,9 @@ def send_results_email(db, election: models.Election, *, final: bool = False) ->
         text_body=build_results_email_text(election, results, dashboard_url=url, final=final),
         html_body=build_results_email_html(election, results, dashboard_url=url, final=final),
         from_name=election.nr_apc or None,
+        db=db,
+        election_id=election.id,
+        kind="raport final" if final else "raport rezultate",
     )
     if ok and final:
         election.results_final_email_sent_at = datetime.now(timezone.utc)
@@ -135,6 +138,9 @@ def _expiry_email(db, election: models.Election, days_left: int, end: datetime) 
         text_body=text,
         html_body=html,
         from_name=election.nr_apc or None,
+        db=db,
+        election_id=election.id,
+        kind="reamintire expirare",
     )
 
 
