@@ -55,6 +55,7 @@ def send_email(
     pdf_path: str | None = None,
     attach_pdf: bool = False,
     from_name: str | None = None,
+    attachment_name: str = "buletin-de-vot.pdf",
 ) -> tuple[bool, str]:
     """Send one email. Returns (ok, info). BCC addresses are only used in the SMTP envelope.
     `from_name` overrides the sender display name (the ballot uses the APC number)."""
@@ -87,7 +88,7 @@ def send_email(
             with open(pdf_path, "rb") as fh:
                 msg.add_attachment(
                     fh.read(), maintype="application", subtype="pdf",
-                    filename="buletin-de-vot-confirmare.pdf",
+                    filename=attachment_name,
                 )
         except OSError as exc:
             return False, f"Nu am putut citi PDF-ul: {exc}"
@@ -125,6 +126,7 @@ def send_confirmation_email(
     html_body: str | None = None,
     attach_pdf: bool = True,
     nr_apc: str = "",
+    attachment_name: str = "buletin-de-vot.pdf",
 ) -> tuple[bool, str]:
     values = dict(
         voter_name=voter_name or "votant",
@@ -146,4 +148,5 @@ def send_confirmation_email(
         pdf_path=pdf_path,
         attach_pdf=attach_pdf,
         from_name=nr_apc or None,
+        attachment_name=attachment_name,
     )

@@ -307,9 +307,14 @@ export default function VotePage() {
           {done.email_sent && done.email_recipient && (
             <p>Confirmarea cu buletinul semnat a fost trimisă la {done.email_recipient}.</p>
           )}
-          <a className="btn" href={done.receipt_url} target="_blank" rel="noreferrer">
-            Descarcă confirmarea votului (PDF)
-          </a>
+          <div className="actions-row success-actions">
+            <a className="btn btn-primary" href={`${done.receipt_url}?inline=1`} target="_blank" rel="noreferrer">
+              Deschide votul
+            </a>
+            <a className="btn" href={done.receipt_url} target="_blank" rel="noreferrer">
+              Descarcă confirmarea votului (PDF)
+            </a>
+          </div>
         </div>
       </div>
     );

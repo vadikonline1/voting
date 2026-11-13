@@ -187,6 +187,22 @@ def _check_not_voted(db: Session, election: models.Election, properties: list[di
             )
 
 
+def _safe_part(value: str) -> str:
+    """Keep a filename part readable and free of characters Windows/macOS reject."""
+    cleaned = re.sub(r'[\/:*?"<>|\s]+', "-", (value or "").strip())
+    return cleaned.strip("-") or "fara"
+
+
+def ballot_filename(election, token, submitted_at) -> str:
+    """{data}-buletin_de_vot-{nr_apc}-{tip_imobil}-{nr_imobil}-{email}.pdf"""
+    date = submitted_at.strftime("%Y-%m-%d")
+    props = "_".join(
+        f"{_safe_part(p['tip_proprietate'])}-{_safe_part(p['nr_proprietate'])}" for p in token.properties
+    ) or "fara-imobil"
+    email = _safe_part(token.email) if token.email else "fara-email"
+    return f"{date}-buletin_de_vot-{_safe_part(election.nr_apc)}-{props}-{email}.pdf"
+
+
 def _send_confirmation(db, election, token, effective, submitted_at, receipt_path):
     """Send the ballot to the owner. Without an owner email it goes to the APC address.
     The sender name is always the APC number. Returns (sent, recipient_masked_or_label)."""
@@ -232,6 +248,7 @@ def _send_confirmation(db, election, token, effective, submitted_at, receipt_pat
         ),
         attach_pdf=attach_pdf,
         nr_apc=election.nr_apc or "",
+        attachment_name=ballot_filename(election, token, submitted_at),
     )
     return ok, recipient
 
@@ -371,11 +388,18 @@ def submit_apc_vote(nr_apc: str, payload: schemas.VoteSubmission, request: Reque
 
 
 @router.get("/receipt/{token_id}.pdf")
-def download_receipt(token_id: str, db: Session = Depends(get_db)):
-    """The token id is random and only given to the owner who voted (it is not guessable)."""
+def download_receipt(token_id: str, inline: bool = False, db: Session = Depends(get_db)):
+    """The token id is random and only given to the owner who voted (it is not guessable).
+    `inline=1` opens the ballot in the browser; otherwise it is downloaded."""
     token = db.query(models.VoterToken).filter(models.VoterToken.id == token_id).first()
     if not token or not token.vote or not token.vote.receipt_pdf_path:
         raise HTTPException(status_code=404, detail="Chitanța nu este disponibilă")
     if not os.path.exists(token.vote.receipt_pdf_path):
         raise HTTPException(status_code=404, detail="Chitanța nu este disponibilă")
-    return FileResponse(token.vote.receipt_pdf_path, filename="buletin-de-vot-confirmare.pdf", media_type="application/pdf")
+    submitted_at = token.vote.submitted_at or token.voted_at
+    return FileResponse(
+        token.vote.receipt_pdf_path,
+        filename=ballot_filename(token.election, token, submitted_at),
+        media_type="application/pdf",
+        content_disposition_type="inline" if inline else "attachment",
+    )
