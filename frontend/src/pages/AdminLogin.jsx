@@ -15,9 +15,13 @@ export default function AdminLogin() {
     setLoading(true);
     setError("");
     try {
-      await api.login(username, password);
-      const from = location.state?.from || "/admin";
-      navigate(from, { replace: true });
+      const data = await api.login(username, password);
+      if (data && data.must_change_password) {
+        navigate("/admin/change-password", { replace: true });
+      } else {
+        const from = location.state?.from || "/admin";
+        navigate(from, { replace: true });
+      }
     } catch (e) {
       setError(e.message);
     } finally {

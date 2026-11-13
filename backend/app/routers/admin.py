@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..auth import (
-    create_session_token, verify_password, require_admin,
-    SESSION_COOKIE, SESSION_MAX_AGE,
+    create_session_token, hash_password, verify_password, require_admin,
+    get_current_admin, SESSION_COOKIE, SESSION_MAX_AGE,
 )
 from ..config import settings
 from ..database import get_db
@@ -27,7 +27,11 @@ def login(payload: schemas.AdminLogin, response: Response, db: Session = Depends
     response.set_cookie(
         SESSION_COOKIE, token, max_age=SESSION_MAX_AGE, httponly=True, samesite="lax",
     )
-    return {"ok": True, "username": user.username}
+    return {
+        "ok": True,
+        "username": user.username,
+        "must_change_password": bool(user.must_change_password),
+    }
 
 
 @router.post("/logout")
@@ -37,8 +41,42 @@ def logout(response: Response):
 
 
 @router.get("/me")
-def me(username: str = Depends(require_admin)):
-    return {"username": username}
+def me(admin: models.AdminUser = Depends(get_current_admin)):
+    return {
+        "username": admin.username,
+        "must_change_password": bool(admin.must_change_password),
+    }
+
+
+@router.post("/change-password")
+def change_password(
+    payload: schemas.ChangePasswordIn,
+    admin: models.AdminUser = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """Lets the logged-in admin replace the initial/default password."""
+    if not verify_password(payload.current_password, admin.password_hash):
+        raise HTTPException(status_code=400, detail="Parola actuală este incorectă.")
+    new_password = (payload.new_password or "").strip()
+    if len(new_password) < 8:
+        raise HTTPException(
+            status_code=400,
+            detail="Parola nouă trebuie să aibă cel puțin 8 caractere.",
+        )
+    if len(new_password) > 128:
+        raise HTTPException(
+            status_code=400,
+            detail="Parola nouă este prea lungă (maximum 128 de caractere).",
+        )
+    if new_password == payload.current_password:
+        raise HTTPException(
+            status_code=400,
+            detail="Parola nouă trebuie să fie diferită de cea actuală.",
+        )
+    admin.password_hash = hash_password(new_password)
+    admin.must_change_password = False
+    db.commit()
+    return {"ok": True}
 
 
 # -------------------------------------------------------------- helpers ----

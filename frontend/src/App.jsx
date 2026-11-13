@@ -4,6 +4,7 @@ import AdminLogin from "./pages/AdminLogin";
 import AdminElections from "./pages/AdminElections";
 import AdminElectionDetail from "./pages/AdminElectionDetail";
 import AdminSmtp from "./pages/AdminSmtp";
+import AdminChangePassword from "./pages/AdminChangePassword";
 import VotePage from "./pages/VotePage";
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
         <Route index element={<AdminElections />} />
         <Route path="elections/:id" element={<AdminElectionDetail />} />
         <Route path="smtp" element={<AdminSmtp />} />
+        <Route path="change-password" element={<AdminChangePassword />} />
       </Route>
 
       {/* public ballot links: /{uuid} - must stay last so it doesn't swallow /admin/* */}

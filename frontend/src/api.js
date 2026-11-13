@@ -37,6 +37,11 @@ export const api = {
     request(`/admin/login`, { method: "POST", body: JSON.stringify({ username, password }) }),
   logout: () => request(`/admin/logout`, { method: "POST" }),
   me: () => request(`/admin/me`),
+  changePassword: (currentPassword, newPassword) =>
+    request(`/admin/change-password`, {
+      method: "POST",
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    }),
 
   // elections
   listElections: () => request(`/admin/elections`),

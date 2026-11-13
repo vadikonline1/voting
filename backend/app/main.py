@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -8,11 +9,16 @@ from sqlalchemy import text
 
 from .database import Base, engine, SessionLocal
 from . import models
-from .auth import hash_password
+from .auth import hash_password, verify_password
 from .config import settings
 from .routers import ballot, admin
 
 Base.metadata.create_all(bind=engine)
+
+# Initial/example passwords shipped in the docs or earlier releases. If an existing database
+# still uses one of them, the owner is asked to change it at the next login.
+LEGACY_DEFAULT_PASSWORDS = ("admin", "change-this-password", "schimba-aceasta-parola")
+ADMIN_RESET_MARKER = ".admin-reset-used"
 
 
 def _migrate_sqlite():
@@ -33,6 +39,9 @@ def _migrate_sqlite():
         "votes": {
             "gdpr_consent_at": "DATETIME",
         },
+        "admin_users": {
+            "must_change_password": "BOOLEAN DEFAULT 0",
+        },
     }
     with engine.begin() as conn:
         for table, columns in additions.items():
@@ -48,11 +57,44 @@ _migrate_sqlite()
 def _bootstrap():
     db = SessionLocal()
     try:
-        if not db.query(models.AdminUser).first():
+        admin_user = db.query(models.AdminUser).first()
+        reset_marker = os.path.join(settings.data_dir, ADMIN_RESET_MARKER)
+
+        if not admin_user:
             db.add(models.AdminUser(
                 username=settings.admin_username,
                 password_hash=hash_password(settings.admin_password),
+                must_change_password=True,
             ))
+            print(
+                "[bootstrap] Cont de administrare creat. "
+                "Autentificați-vă și schimbați parola la prima conectare."
+            )
+        elif settings.admin_reset_password and not os.path.exists(reset_marker):
+            # One-shot recovery for a database with an unknown/forgotten password.
+            admin_user.username = settings.admin_username or admin_user.username
+            admin_user.password_hash = hash_password(settings.admin_password)
+            admin_user.must_change_password = True
+            try:
+                with open(reset_marker, "w", encoding="utf-8") as fh:
+                    fh.write(datetime.now(timezone.utc).isoformat())
+            except OSError:
+                pass
+            print(
+                "[bootstrap] Parola de administrare a fost resetată din ADMIN_PASSWORD. "
+                "Schimbați-o după autentificare."
+            )
+        elif not admin_user.must_change_password:
+            # Existing installation created before the "must change password" flag existed:
+            # detect the old default/example passwords and force a change on next login.
+            for candidate in LEGACY_DEFAULT_PASSWORDS:
+                try:
+                    if verify_password(candidate, admin_user.password_hash):
+                        admin_user.must_change_password = True
+                        break
+                except Exception:  # noqa: BLE001 - never block startup because of a hash issue
+                    break
+
         if not db.query(models.SmtpSettings).first():
             db.add(models.SmtpSettings(id=1))
         if not db.query(models.Election).first():

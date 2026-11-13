@@ -19,6 +19,9 @@ class AdminUser(Base):
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
+    # True while the account still uses the initial/default password; the admin API refuses
+    # all operations except /me and /change-password until the password is replaced.
+    must_change_password = Column(Boolean, default=False)
     created_at = Column(DateTime, default=utcnow)
 
 

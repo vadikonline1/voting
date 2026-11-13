@@ -78,6 +78,11 @@ class AdminLogin(BaseModel):
     password: str
 
 
+class ChangePasswordIn(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class VoterRow(BaseModel):
     nume_prenume: str = ""
     phone: str = ""

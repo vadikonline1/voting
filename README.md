@@ -20,6 +20,7 @@ Sistem de votare online pentru buletinul de vot al Adunării Generale a membrilo
 - Confirmare pe email configurabilă per vot: **cu atașament PDF** sau **fără atașament** (atunci emailul conține textul legal și linkul de descărcare a buletinului). Emailul este multipart (text simplu + HTML) și poate avea **copii CC/BCC** configurate per vot, trimise automat la fiecare confirmare.
 - Trimiterea emailului folosește setările SMTP din panoul de administrare (host, port, user, parolă, TLS, subiect, conținut), nu doar variabile din `.env`.
 - Panou de administrare (user + parolă):
+  - autentificare cu credențiale inițiale simple și **schimbare obligatorie a parolei la prima conectare**; parola poate fi schimbată oricând din „Schimbă parola”, iar resetarea în caz de blocare se face controlat din `.env`;
   - editor de conținut pentru buletin: nr. APC, adresă, localitate, data Adunării, termenul-limită, tip proprietate, întrebări cu numerotare liberă și logică condiționată;
   - setări per vot pentru email: cu/fără atașament PDF, copii CC și BCC;
   - generare în masă de link-uri personalizate (nume, telefon, adresă, email, nr. proprietate pentru fiecare proprietar) sau link-uri goale de completat ulterior;
@@ -42,6 +43,22 @@ docker compose up -d --build
 ```
 
 Aplicația pornește pe `http://localhost:8000` (sau portul din `APP_PORT`). Panoul de administrare este la `/admin`.
+
+### Cont de administrare
+
+- Credențiale inițiale simple: **`admin` / `admin`** (sau cele din `ADMIN_USERNAME` / `ADMIN_PASSWORD`).
+- La prima autentificare, panoul **vă obligă să schimbați parola** (minimum 8 caractere) înainte de a putea administra voturile; până atunci, toate operațiunile din API sunt blocate (cu excepția schimbării parolei).
+- Dacă baza de date există deja și nu mai știți parola (de exemplu, ați schimbat `ADMIN_PASSWORD` în `.env`, dar contul fusese deja creat), folosiți resetarea unică:
+
+  ```bash
+  # în .env:
+  # ADMIN_PASSWORD=parola-temporara
+  # ADMIN_RESET_PASSWORD=true
+  docker compose up -d
+  ```
+
+  Autentificați-vă cu `ADMIN_PASSWORD`, schimbați parola din panou, apoi puneți `ADMIN_RESET_PASSWORD=false`. Resetarea se execută o singură dată (marker `/data/.admin-reset-used`); pentru o nouă resetare, ștergeți markerul:
+  `docker compose exec app rm /data/.admin-reset-used`.
 
 ### Cu HTTPS automat (Caddy), pentru un domeniu public precum `vot.aalto.md`
 
@@ -75,7 +92,7 @@ Caddyfile             config Caddy pentru HTTPS automat
 
 ## Note de securitate
 
-- Schimbă `SECRET_KEY` și `ADMIN_PASSWORD` din `.env` înainte de a expune public aplicația.
+- Schimbă `SECRET_KEY` și parola de administrare din `.env` înainte de a expune public aplicația. Credențialele inițiale `admin` / `admin` sunt publice prin documentație; sistemul cere schimbarea parolei la prima autentificare, dar nu lăsați instanța expusă cu parola implicită nesolicitată.
 - Parola SMTP este stocată în baza de date (editabilă din panou); pentru producție, rulează aplicația în spatele HTTPS (profilul `caddy` sau propriul reverse proxy) ca traficul (inclusiv cookie-ul de sesiune admin) să fie criptat.
 - Fiecare link de vot poate fi folosit o singură dată; după ce s-a votat, linkul arată doar confirmarea și permite descărcarea PDF-ului, fără a permite revotarea.
 - Datele personale introduse de votant sunt folosite exclusiv pentru organizarea votării; consimțământul GDPR este obligatoriu și înregistrat (dată + oră) în baza de date și în PDF.
