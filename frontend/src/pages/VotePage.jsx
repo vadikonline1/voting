@@ -76,10 +76,55 @@ function cleanVoter(voter) {
 }
 
 /** Applies question dependencies: a triggered question is disabled and forced to `auto_answer`. */
+/** Items forced by an exclusive chestiune: if one question of the group is answered with its first
+ * option ("Pentru"), the others of the same chestiune get their last option ("Împotriva"). */
+function exclusiveForced(questions, answers) {
+  const groups = [];
+  let current = [];
+  let exclusive = false;
+  for (const q of questions) {
+    if (q.type === "section") {
+      if (current.length) groups.push({ exclusive, group: current });
+      current = [];
+      exclusive = Boolean(q.exclusive);
+      continue;
+    }
+    current.push(q);
+  }
+  if (current.length) groups.push({ exclusive, group: current });
+
+  const forced = {};
+  for (const { exclusive: isExclusive, group } of groups) {
+    if (!isExclusive || group.length < 2) continue;
+    const winner = group.find((q) => (q.options || []).length && answers[q.id] === q.options[0]);
+    if (!winner) continue;
+    for (const q of group) {
+      if (q.id !== winner.id && (q.options || []).length) {
+        forced[q.id] = q.options[q.options.length - 1];
+      }
+    }
+  }
+  return forced;
+}
+
+/** Applies question dependencies and exclusive chestiuni. Returns the automatic answers, the effective
+ * answers and a short reason for each automatic answer (shown under the question). */
 function resolveAnswers(questions, answers) {
   const auto = {};
   const effective = {};
+  const reasons = {};
+  const forcedExclusive = exclusiveForced(questions, answers);
+
   for (const q of questions) {
+    if (q.type === "section") continue;
+
+    if (forcedExclusive[q.id] !== undefined) {
+      auto[q.id] = forcedExclusive[q.id];
+      effective[q.id] = forcedExclusive[q.id];
+      reasons[q.id] = `Răspuns setat automat la „${forcedExclusive[q.id]}”, deoarece ați ales „${q.options[0]}” la altă întrebare din aceeași chestiune.`;
+      continue;
+    }
+
     let triggered = false;
     if (q.depends_on && q.type !== "multiple") {
       const parentValue = effective[q.depends_on];
@@ -94,11 +139,14 @@ function resolveAnswers(questions, answers) {
       const forced = q.auto_answer || options[options.length - 1] || "";
       auto[q.id] = forced;
       effective[q.id] = forced;
+      const parent = questions.find((p) => p.id === q.depends_on);
+      const parentText = parent ? `${labelFor(questions, parent)}. ${parent.text}` : "";
+      reasons[q.id] = `Răspuns setat automat la „${forced}”, deoarece la întrebarea „${parentText}” ați ales „${q.depends_value}”.`;
     } else {
       effective[q.id] = answers[q.id];
     }
   }
-  return { auto, effective };
+  return { auto, effective, reasons };
 }
 
 const propKey = (p) => `${p.tip_proprietate}|${p.nr_proprietate}`;
@@ -151,7 +199,7 @@ export default function VotePage() {
       .finally(() => setLoading(false));
   }, [nrApc]);
 
-  const { auto, effective } = useMemo(
+  const { auto, effective, reasons } = useMemo(
     () => resolveAnswers(ballot?.questions || [], answers),
     [ballot, answers]
   );
@@ -503,6 +551,11 @@ export default function VotePage() {
                 <div key={q.id} className="chestiune-box chestiune-box-vote">
                   <div className="chestiune-label">Chestiunea propusă spre vot</div>
                   <div className="chestiune-text">{q.text}</div>
+                  {q.exclusive && (
+                    <p className="chestiune-hint">
+                      Alegere unică: dacă la o întrebare alegeți „Pentru”, celelalte din această chestiune se completează automat cu „Împotriva”.
+                    </p>
+                  )}
                 </div>
               );
             }
@@ -541,10 +594,7 @@ export default function VotePage() {
                   );
                 })}
                 {isAuto && (
-                  <p className="auto-note">
-                    Răspuns setat automat la „{forced}”, deoarece la întrebarea „{parentLabel}” ați ales „
-                    {q.depends_value}”.
-                  </p>
+                  <p className="auto-note">{reasons[q.id]}</p>
                 )}
               </fieldset>
             );

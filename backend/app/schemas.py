@@ -18,6 +18,10 @@ class Question(BaseModel):
     depends_value: Optional[str] = None
     auto_answer: Optional[str] = None
 
+    # Only on a chestiune (type "section"): one "Pentru" (options[0]) in the group makes every other
+    # question of the same chestiune automatically "Împotriva" (options[-1]).
+    exclusive: bool = False
+
 
 class PropertyItem(BaseModel):
     tip_proprietate: str = "apartament"  # apartament | debara | parcare

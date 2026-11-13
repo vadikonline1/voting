@@ -65,13 +65,56 @@ def _election_property_types(election: models.Election) -> list[str]:
 
 
 # ------------------------------------------------------------- voting logic --
+def _is_positive(question: dict, value) -> bool:
+    options = question.get("options") or []
+    return bool(options) and isinstance(value, str) and value == str(options[0])
+
+
+def _exclusive_forced(questions: list, answers: dict) -> dict:
+    """Questions forced by an exclusive chestiune: if one question of the group is "Pentru",
+    the others of the same chestiune get their last option ("Împotriva") automatically."""
+    groups: list[tuple[bool, list]] = []
+    current: list = []
+    exclusive = False
+    for q in questions:
+        if q.get("type") == "section":
+            if current:
+                groups.append((exclusive, current))
+            current, exclusive = [], bool(q.get("exclusive"))
+            continue
+        current.append(q)
+    if current:
+        groups.append((exclusive, current))
+
+    forced: dict = {}
+    for is_exclusive, group in groups:
+        if not is_exclusive or len(group) < 2:
+            continue
+        winners = [q for q in group if _is_positive(q, answers.get(q.get("id")))]
+        if not winners:
+            continue
+        winner_id = winners[0].get("id")
+        for q in group:
+            options = q.get("options") or []
+            if q.get("id") != winner_id and options:
+                forced[q.get("id")] = str(options[-1])
+    return forced
+
+
 def _resolve_answers(questions: list, answers: dict) -> tuple[dict, dict]:
     """Apply question dependencies (see README): a dependent question gets `auto_answer`
-    when its parent's effective answer equals `depends_value`."""
+    when its parent's effective answer equals `depends_value`. Exclusive chestiuni force the rest."""
     effective: dict = {}
     auto: dict = {}
+    forced_exclusive = _exclusive_forced(questions, answers)
     for q in questions:
         qid = q.get("id")
+        if q.get("type") == "section":
+            continue
+        if qid in forced_exclusive:
+            effective[qid] = forced_exclusive[qid]
+            auto[qid] = forced_exclusive[qid]
+            continue
         triggered = False
         parent = q.get("depends_on")
         if parent:

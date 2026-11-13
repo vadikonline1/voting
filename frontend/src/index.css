@@ -877,3 +877,30 @@ h2 { font-size: 1.25rem; }
 .section-editor-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 8px; }
 .section-editor textarea { width: 100%; font: inherit; font-weight: 600; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
 .chestiune-box-vote { margin-top: 6px; }
+
+/* --- Admin: question cards (clean layout) ------------------------------ */
+.qe-card { border: 1px solid var(--border); border-radius: 12px; background: #fff; padding: 14px 16px; margin: 14px 0; }
+.qe-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.qe-badge { display: inline-grid; place-items: center; min-width: 30px; height: 30px; padding: 0 8px; border-radius: 8px; background: var(--primary); color: #fff; font-weight: 700; }
+.qe-head-title { font-weight: 600; }
+.qe-head-actions { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+.qe-check { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+.qe-grid { display: grid; grid-template-columns: 110px 1fr 200px; gap: 12px; align-items: start; }
+.qe-grid .field { margin-bottom: 0; }
+.qe-letter { max-width: 110px; }
+.qe-options { margin-top: 12px; }
+.qe-label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+.qe-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.qe-chip { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 999px; padding: 2px 4px 2px 12px; background: #fafbfc; }
+.qe-chip input { border: 0; background: transparent; min-width: 140px; padding: 6px 4px; font: inherit; }
+.qe-chip input:focus { outline: none; }
+.qe-chip-x { border: 0; background: none; color: var(--muted); font-size: 1.1rem; cursor: pointer; padding: 0 8px; }
+.qe-chip-x:hover { color: var(--danger); }
+.qe-add { border: 1px dashed var(--primary); background: #fff; color: var(--primary); border-radius: 999px; padding: 6px 14px; font: inherit; cursor: pointer; }
+.qe-dep { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 10px; }
+.qe-dep summary { cursor: pointer; font-weight: 600; color: var(--primary); margin-bottom: 10px; }
+.qe-dep .qe-grid { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.section-editor-title { font-weight: 700; }
+.exclusive-toggle { margin-top: 10px; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.chestiune-hint { margin: 10px 0 0; font-size: 0.95rem; color: var(--primary-dark); }
+@media (max-width: 720px) { .qe-grid { grid-template-columns: 1fr; } .qe-head-actions { margin-left: 0; } }

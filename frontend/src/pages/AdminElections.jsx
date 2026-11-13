@@ -26,6 +26,16 @@ function nextLetter(questions) {
   return String.fromCharCode(96 + n + 1);
 }
 
+/** Questions above `qIdx` in the same chestiune only (a condition can only depend on those). */
+function sameSectionParents(questions, qIdx) {
+  const out = [];
+  for (let k = qIdx - 1; k >= 0; k--) {
+    if (questions[k].type === "section") break;
+    out.unshift(questions[k]);
+  }
+  return out;
+}
+
 /** Letter of the question at `index`, counted after the last chestiune before it. */
 function letterFor(questions, index) {
   let n = 0;
@@ -460,15 +470,11 @@ export default function AdminElections() {
           Întrebările sunt numerotate cu litere: a, b, c… Dependențele se setează la fiecare întrebare. Opțiunile implicite sunt „Pentru” și „Împotriva”.
         </p>
         {editing.questions.map((q, qIdx) => {
-          const parentOptions = (() => {
-            const parent = editing.questions.find((p) => p.id === q.depends_on);
-            return (parent && parent.options) || [];
-          })();
           if (q.type === "section") {
             return (
               <div key={q.id} className="section-editor">
                 <div className="section-editor-head">
-                  <span>Chestiunea propusă spre vot</span>
+                  <span className="section-editor-title">Chestiunea propusă spre vot</span>
                   <button type="button" className="btn-link btn-danger" onClick={() => removeQuestion(qIdx)}>
                     Șterge chestiunea
                   </button>
@@ -479,140 +485,168 @@ export default function AdminElections() {
                   onChange={(e) => updateQuestion(qIdx, { text: e.target.value })}
                   placeholder="Ex.: Alegerea președintelui și secretarului Adunării Generale Mixte"
                 />
+                <label className="checkbox-field exclusive-toggle">
+                  <input
+                    type="checkbox"
+                    checked={!!q.exclusive}
+                    onChange={(e) => updateQuestion(qIdx, { exclusive: e.target.checked })}
+                  />
+                  <span>
+                    <strong>Alegere unică în această chestiune.</strong> Dacă la o întrebare se alege „Pentru”,
+                    celelalte întrebări din chestiune primesc automat „Împotriva”.
+                  </span>
+                </label>
                 <p className="muted section-hint">Întrebările de sub această chestiune sunt numerotate a, b, c…</p>
               </div>
             );
           }
+
+          const parents = sameSectionParents(editing.questions, qIdx);
+          const parent = parents.find((p) => p.id === q.depends_on);
+
           return (
-            <div key={q.id} className="question-editor">
-              <div className="field-row">
-                <label className="field" style={{ maxWidth: 90 }}>
-                  <span>Nr.</span>
-                  <input
-                    value={q.number}
-                    onChange={(e) => updateQuestion(qIdx, { number: e.target.value })}
-                    placeholder="3.a"
-                    required
-                  />
+            <div key={q.id} className="qe-card">
+              <div className="qe-head">
+                <span className="qe-badge">{q.number || "?"}</span>
+                <span className="qe-head-title">Întrebarea {q.number || "?"}</span>
+                <div className="qe-head-actions">
+                  <label className="qe-check">
+                    <input
+                      type="checkbox"
+                      checked={q.required}
+                      onChange={(e) => updateQuestion(qIdx, { required: e.target.checked })}
+                    />
+                    Obligatorie
+                  </label>
+                  <button type="button" className="btn-link btn-danger" onClick={() => removeQuestion(qIdx)}>
+                    Șterge întrebarea
+                  </button>
+                </div>
+              </div>
+
+              <div className="qe-grid">
+                <label className="field qe-letter">
+                  <span>Literă</span>
+                  <input value={q.number} onChange={(e) => updateQuestion(qIdx, { number: e.target.value })} placeholder="a" />
                 </label>
-                <label className="field" style={{ flex: 2 }}>
+                <label className="field qe-text">
                   <span>Textul întrebării</span>
                   <textarea
-                    rows={3}
+                    rows={2}
                     value={q.text}
                     onChange={(e) => updateQuestion(qIdx, { text: e.target.value })}
-                    required
+                    placeholder="Ex.: Președintele adunării, dna Anastasia Malec"
                   />
                 </label>
-                <label className="field">
-                  <span>Tip</span>
+                <label className="field qe-type">
+                  <span>Tip de răspuns</span>
                   <select
                     value={q.type}
                     onChange={(e) => {
                       const type = e.target.value;
                       updateQuestion(qIdx, {
                         type,
-                        ...(type !== "single"
-                          ? { depends_on: null, depends_value: null, auto_answer: null }
-                          : {}),
+                        ...(type !== "single" ? { depends_on: null, depends_value: null, auto_answer: null } : {}),
                       });
                     }}
                   >
-                    <option value="single">O singură opțiune</option>
-                    <option value="multiple">Opțiuni multiple</option>
+                    <option value="single">O singură variantă</option>
+                    <option value="multiple">Mai multe variante</option>
                   </select>
                 </label>
-                <label className="checkbox-field" style={{ alignSelf: "center" }}>
-                  <input
-                    type="checkbox"
-                    checked={q.required}
-                    onChange={(e) => updateQuestion(qIdx, { required: e.target.checked })}
-                  />
-                  Obligatorie
-                </label>
               </div>
 
-              <div className="options-editor">
-                {q.options.map((opt, optIdx) => (
-                  <div key={optIdx} className="option-row">
-                    <input
-                      value={opt}
-                      placeholder={`Opțiune ${optIdx + 1}`}
-                      onChange={(e) => updateOption(qIdx, optIdx, e.target.value)}
-                    />
-                    <button type="button" className="btn-link" onClick={() => removeOption(qIdx, optIdx)}>
-                      ×
-                    </button>
-                  </div>
-                ))}
-                <button type="button" className="btn-link" onClick={() => addOption(qIdx)}>
-                  + opțiune
-                </button>
+              <div className="qe-options">
+                <span className="qe-label">Variante de răspuns</span>
+                <div className="qe-chips">
+                  {q.options.map((opt, optIdx) => (
+                    <div key={optIdx} className="qe-chip">
+                      <input
+                        value={opt}
+                        placeholder={`Varianta ${optIdx + 1}`}
+                        onChange={(e) => updateOption(qIdx, optIdx, e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="qe-chip-x"
+                        aria-label="Șterge varianta"
+                        onClick={() => removeOption(qIdx, optIdx)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <button type="button" className="qe-add" onClick={() => addOption(qIdx)}>
+                    + Adaugă variantă
+                  </button>
+                </div>
               </div>
 
-              {qIdx > 0 && q.type === "single" && (
-                <div className="dependency-editor">
-                  <span className="dependency-title">Logică condiționată (opțional)</span>
-                  <div className="field-row">
-                    <label className="field">
-                      <span>Depinde de întrebarea</span>
-                      <select value={q.depends_on || ""} onChange={(e) => setDependency(qIdx, e.target.value)}>
-                        <option value="">— nu depinde —</option>
-                        {editing.questions.slice(0, qIdx).filter((p) => p.type !== "section").map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.number || "?"}. {p.text ? p.text.slice(0, 60) : "(fără text)"}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    {q.depends_on && (
-                      <>
-                        <label className="field">
-                          <span>Dacă răspunsul este</span>
-                          <select
-                            value={q.depends_value || ""}
-                            onChange={(e) => updateQuestion(qIdx, { depends_value: e.target.value })}
-                          >
-                            {parentOptions.map((opt) => (
-                              <option key={opt} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        <label className="field">
-                          <span>Atunci setează automat</span>
-                          <select
-                            value={q.auto_answer || ""}
-                            onChange={(e) => updateQuestion(qIdx, { auto_answer: e.target.value })}
-                          >
-                            {q.options.map((opt) => (
-                              <option key={opt} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      </>
-                    )}
-                  </div>
-                  {q.depends_on && (
+              {q.type === "single" && (
+                <details className="qe-dep" open={Boolean(q.depends_on)}>
+                  <summary>
+                    Condiție: depinde de o altă întrebare din aceeași chestiune
+                    {q.depends_on ? " (activă)" : " (opțional)"}
+                  </summary>
+                  {parents.length === 0 ? (
+                    <p className="muted">Nu există întrebări anterioare în această chestiune.</p>
+                  ) : (
+                    <div className="qe-grid">
+                      <label className="field qe-type">
+                        <span>Întrebarea</span>
+                        <select value={q.depends_on || ""} onChange={(e) => setDependency(qIdx, e.target.value)}>
+                          <option value="">— fără condiție —</option>
+                          {parents.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.number || "?"}. {p.text ? p.text.slice(0, 60) : "(fără text)"}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      {q.depends_on && parent && (
+                        <>
+                          <label className="field qe-type">
+                            <span>Dacă răspunsul este</span>
+                            <select
+                              value={q.depends_value || ""}
+                              onChange={(e) => updateQuestion(qIdx, { depends_value: e.target.value })}
+                            >
+                              {(parent.options || []).map((opt) => (
+                                <option key={opt} value={opt}>
+                                  {opt}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="field qe-type">
+                            <span>Atunci se setează automat</span>
+                            <select
+                              value={q.auto_answer || ""}
+                              onChange={(e) => updateQuestion(qIdx, { auto_answer: e.target.value })}
+                            >
+                              {q.options.map((opt) => (
+                                <option key={opt} value={opt}>
+                                  {opt}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {q.depends_on && parent && (
                     <p className="muted dependency-hint">
-                      Dacă răspunsul la întrebarea anterioară este „{q.depends_value}”, această întrebare devine
-                      inactivă și primește automat răspunsul „{q.auto_answer}”. În caz contrar, votantul o poate
-                      completa liber.
+                      Dacă răspunsul la „{parent.number}. {parent.text?.slice(0, 60)}” este „{q.depends_value}”, această
+                      întrebare devine inactivă și primește automat „{q.auto_answer}”.
                     </p>
                   )}
-                </div>
+                </details>
               )}
-
-              <button type="button" className="btn-link btn-danger" onClick={() => removeQuestion(qIdx)}>
-                Șterge întrebarea
-              </button>
-              <hr />
             </div>
           );
         })}
+
         <button type="button" className="btn" onClick={addSection}>
           + Adaugă chestiune
         </button>
