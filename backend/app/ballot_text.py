@@ -18,6 +18,11 @@ def question_letter(index: int) -> str:
     return chr(96 + index) if 1 <= index <= 26 else str(index)
 
 
+def public_questions(questions: list) -> list:
+    """What voters see and vote on: everything except the items hidden in the admin."""
+    return [q for q in questions if not q.get("hidden")]
+
+
 def labelled_questions(questions: list) -> list:
     """[(question, label)] in order. A "section" item is a chestiune (label None); the questions
     after it are lettered a, b, c… again, so each chestiune starts from a."""

@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 from html import escape
 
-from .ballot_text import build_ballot_texts, labelled_questions
+from .ballot_text import build_ballot_texts, labelled_questions, public_questions
 from .email_utils import render_template
 
 BALLOT_TOKEN = "{buletin}"
@@ -22,7 +22,7 @@ def _answer_text(question: dict, answer) -> str:
 
 
 def _questions(election) -> list:
-    return json.loads(election.questions_json or "[]")
+    return public_questions(json.loads(election.questions_json or "[]"))
 
 
 def _split_template(template: str, values: dict) -> tuple[str, str]:

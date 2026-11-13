@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
-from ..ballot_text import GDPR_TEXT, build_ballot_texts, PLACEHOLDER
+from ..ballot_text import GDPR_TEXT, PLACEHOLDER, build_ballot_texts, public_questions
 from ..config import settings
 from ..database import get_db
 from ..email_html import build_email_html, build_email_text
@@ -338,7 +338,7 @@ def get_apc_ballot(nr_apc: str, db: Session = Depends(get_db)):
         properties=[schemas.PropertyItem(tip_proprietate=t, nr_proprietate="") for t in _election_property_types(election)],
         allow_multiple_properties=bool(election.allow_multiple_properties),
         chestiune=election.chestiune or "",
-        questions=json.loads(election.questions_json or "[]"),
+        questions=public_questions(json.loads(election.questions_json or "[]")),
         require_signature=election.require_signature,
         is_open=status_ == "open",
         status=status_,
@@ -361,7 +361,7 @@ def submit_apc_vote(nr_apc: str, payload: schemas.VoteSubmission, request: Reque
     properties = _clean_properties(election, payload.properties)
     _check_not_voted(db, election, properties)
 
-    questions = json.loads(election.questions_json or "[]")
+    questions = public_questions(json.loads(election.questions_json or "[]"))
     property_types = frozenset(p["tip_proprietate"] for p in properties)
     effective, auto = _resolve_answers(questions, payload.answers or {}, property_types)
     _validate_answers(questions, effective, auto)

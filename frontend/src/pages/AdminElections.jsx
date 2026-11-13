@@ -497,6 +497,16 @@ export default function AdminElections() {
                     celelalte întrebări din chestiune primesc automat „Împotriva”.
                   </span>
                 </label>
+                <label className="checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={!!q.hidden}
+                    onChange={(e) => updateQuestion(qIdx, { hidden: e.target.checked })}
+                  />
+                  <span>
+                    <strong>Ascunsă de la vot.</strong> Chestiunea și întrebările ei nu apar votanților, dar rămân vizibile în admin.
+                  </span>
+                </label>
                 <label className="field">
                   <span>Afișează această chestiune doar pentru imobilele de tip</span>
                   <select
@@ -523,7 +533,7 @@ export default function AdminElections() {
           const parent = parents.find((p) => p.id === q.depends_on);
 
           return (
-            <div key={q.id} className="qe-card">
+            <div key={q.id} className={`qe-card ${q.hidden ? "qe-card-hidden" : ""}`}>
               <div className="qe-head">
                 <span className="qe-badge">{q.number || "?"}</span>
                 <span className="qe-head-title">Întrebarea {q.number || "?"}</span>
@@ -535,6 +545,14 @@ export default function AdminElections() {
                       onChange={(e) => updateQuestion(qIdx, { required: e.target.checked })}
                     />
                     Obligatorie
+                  </label>
+                  <label className="qe-check" title="Întrebarea nu apare la vot, pe PDF, în email sau la rezultate">
+                    <input
+                      type="checkbox"
+                      checked={!!q.hidden}
+                      onChange={(e) => updateQuestion(qIdx, { hidden: e.target.checked })}
+                    />
+                    Ascunsă de la vot
                   </label>
                   <button type="button" className="btn-link btn-danger" onClick={() => removeQuestion(qIdx)}>
                     Șterge întrebarea

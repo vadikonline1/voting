@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 
 from . import models
-from .ballot_text import labelled_questions
+from .ballot_text import labelled_questions, public_questions
 from .config import settings
 
 
@@ -33,7 +33,7 @@ def dashboard_url(election: models.Election) -> str:
 
 def compute_results(db, election: models.Election) -> dict:
     """Return totals, participation and per-question counts/percentages."""
-    questions = json.loads(election.questions_json or "[]")
+    questions = public_questions(json.loads(election.questions_json or "[]"))
     votes = db.query(models.Vote).filter(models.Vote.election_id == election.id).all()
     total_tokens = (
         db.query(models.VoterToken)

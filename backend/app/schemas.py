@@ -26,6 +26,9 @@ class Question(BaseModel):
     # a property of this type, e.g. "parcare". Empty = shown to everyone.
     property_type: str = ""
 
+    # Hidden from the voters (not on the ballot, the PDF, the email or the results). Kept in the admin.
+    hidden: bool = False
+
 
 class PropertyItem(BaseModel):
     tip_proprietate: str = "apartament"  # apartament | debara | parcare

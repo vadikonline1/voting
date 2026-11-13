@@ -15,7 +15,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-from .ballot_text import build_ballot_texts, labelled_questions, question_label
+from .ballot_text import build_ballot_texts, labelled_questions, public_questions, question_label
 
 # Register a Unicode TTF font so Romanian diacritics (ă, â, î, ș, ț) render correctly -
 # the base14 PDF fonts (Helvetica) do not support them.
@@ -52,7 +52,7 @@ def generate_receipt_pdf(
     gdpr_consent_at: datetime | None = None,
 ) -> str:
     texts = build_ballot_texts(election, voter)
-    questions = __import__("json").loads(election.questions_json or "[]")
+    questions = public_questions(__import__("json").loads(election.questions_json or "[]"))
 
     doc = SimpleDocTemplate(
         output_path, pagesize=A4,
