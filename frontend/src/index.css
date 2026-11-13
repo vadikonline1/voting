@@ -246,9 +246,12 @@ h2 { font-size: 1.25rem; }
 .admin-nav-footer { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; border-top: 1px solid #2a3650; padding-top: 14px; }
 .admin-nav-footer .btn-link { color: #9db4e0; }
 .admin-content {
-    flex: 1;
-    padding: 28px 36px;
-    max-width: fit-content;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+  padding: clamp(16px, 2.2vw, 40px);
+  box-sizing: border-box;
 }
 
 .elections-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
