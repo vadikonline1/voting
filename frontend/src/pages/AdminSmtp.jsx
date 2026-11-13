@@ -21,7 +21,7 @@ export default function AdminSmtp() {
       const payload = { ...form, password: form.password || null };
       const updated = await api.updateSmtp(payload);
       setForm({ ...updated, password: "" });
-      setMessage("Setările SMTP au fost salvate.");
+      setMessage("Setările au fost salvate.");
     } catch (e) {
       setError(e.message);
     } finally {
@@ -42,63 +42,85 @@ export default function AdminSmtp() {
 
   if (!form) return <p>Se încarcă...</p>;
 
+  const locked = Boolean(form.env_managed);
+
   return (
-    <form className="card" onSubmit={handleSave}>
-      <h2>Setări SMTP</h2>
-      <p className="muted">
-        Folosite pentru a trimite automat confirmarea votului pe email, atunci când votantul indică o
-        adresă de email. Dacă trimiterea cu PDF este activată din setările votului, buletinul semnat este
-        atașat; altfel emailul conține textul legal și linkul de descărcare. Copiile CC/BCC se configurează
-        per vot.
-      </p>
-
-      <label className="checkbox-field">
-        <input type="checkbox" checked={form.enabled} onChange={(e) => setForm({ ...form, enabled: e.target.checked })} />
-        Activează trimiterea pe email
-      </label>
-
-      <div className="field-row">
-        <label className="field">
-          <span>Host SMTP</span>
-          <input value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} placeholder="smtp.gmail.com" />
-        </label>
-        <label className="field">
-          <span>Port</span>
-          <input type="number" value={form.port} onChange={(e) => setForm({ ...form, port: Number(e.target.value) })} />
-        </label>
+    <form className="card smtp-card" onSubmit={handleSave}>
+      <div className="page-head">
+        <h2>Setări SMTP</h2>
+        <span className={`status-pill ${form.enabled ? "status-on" : "status-off"}`}>
+          {form.enabled ? "Activ" : "Dezactivat"}
+        </span>
       </div>
 
-      <div className="field-row">
-        <label className="field">
-          <span>Utilizator</span>
-          <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
-        </label>
-        <label className="field">
-          <span>Parolă {form.has_password && "(setată — lasă gol ca să o păstrezi)"}</span>
+      {locked ? (
+        <div className="info-box env-notice">
+          <strong>Conexiunea SMTP este setată din fișierul <code>.env</code>.</strong>
+          <p>
+            Host, port, utilizator, parolă, expeditor și STARTTLS nu se mai modifică din panou; le găsiți
+            în variabilele <code>SMTP_*</code>. Din panou puteți modifica doar subiectul și conținutul emailului.
+          </p>
+        </div>
+      ) : (
+        <p className="muted">
+          Folosite pentru a trimite automat confirmarea votului pe email, atunci când votantul indică o
+          adresă de email. Dacă trimiterea cu PDF este activată din setările votului, buletinul semnat este
+          atașat; altfel emailul conține textul legal și linkul de descărcare. Copiile CC/BCC se configurează
+          per vot.
+        </p>
+      )}
+
+      <fieldset className="smtp-fieldset" disabled={locked}>
+        <label className="checkbox-field">
           <input
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            type="checkbox"
+            checked={form.enabled}
+            onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
           />
+          Activează trimiterea pe email
         </label>
-      </div>
 
-      <div className="field-row">
-        <label className="field">
-          <span>Email expeditor</span>
-          <input value={form.from_email} onChange={(e) => setForm({ ...form, from_email: e.target.value })} />
+        <div className="form-section-title">Server</div>
+        <div className="field-row">
+          <label className="field">
+            <span>Host SMTP</span>
+            <input value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} placeholder="smtp.gmail.com" />
+          </label>
+          <label className="field field-narrow">
+            <span>Port</span>
+            <input type="number" value={form.port} onChange={(e) => setForm({ ...form, port: Number(e.target.value) })} />
+          </label>
+        </div>
+
+        <div className="field-row">
+          <label className="field">
+            <span>Utilizator</span>
+            <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+          </label>
+          <label className="field">
+            <span>Parolă {form.has_password && "(setată — lasă gol ca să o păstrezi)"}</span>
+            <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          </label>
+        </div>
+
+        <div className="field-row">
+          <label className="field">
+            <span>Email expeditor</span>
+            <input value={form.from_email} onChange={(e) => setForm({ ...form, from_email: e.target.value })} />
+          </label>
+          <label className="field">
+            <span>Nume expeditor</span>
+            <input value={form.from_name} onChange={(e) => setForm({ ...form, from_name: e.target.value })} />
+          </label>
+        </div>
+
+        <label className="checkbox-field">
+          <input type="checkbox" checked={form.use_tls} onChange={(e) => setForm({ ...form, use_tls: e.target.checked })} />
+          Folosește STARTTLS (recomandat pentru portul 587)
         </label>
-        <label className="field">
-          <span>Nume expeditor</span>
-          <input value={form.from_name} onChange={(e) => setForm({ ...form, from_name: e.target.value })} />
-        </label>
-      </div>
+      </fieldset>
 
-      <label className="checkbox-field">
-        <input type="checkbox" checked={form.use_tls} onChange={(e) => setForm({ ...form, use_tls: e.target.checked })} />
-        Folosește STARTTLS (recomandat pentru portul 587)
-      </label>
-
+      <div className="form-section-title">Conținutul emailului</div>
       <label className="field">
         <span>Subiect email</span>
         <input value={form.subject_template} onChange={(e) => setForm({ ...form, subject_template: e.target.value })} />
@@ -107,7 +129,10 @@ export default function AdminSmtp() {
         <span>Conținut email</span>
         <textarea rows={6} value={form.body_template} onChange={(e) => setForm({ ...form, body_template: e.target.value })} />
       </label>
-      <p className="muted">Variabile disponibile: {"{voter_name}"}, {"{election_title}"}, {"{submitted_at}"}</p>
+      <p className="muted">
+        Variabile: <code>{"{voter_name}"}</code> <code>{"{election_title}"}</code> <code>{"{submitted_at}"}</code>{" "}
+        <code>{"{nr_apc}"}</code> — expeditorul este întotdeauna numărul APC.
+      </p>
 
       {error && <p className="error">{error}</p>}
       {message && <p className="success">{message}</p>}
@@ -118,13 +143,19 @@ export default function AdminSmtp() {
         </button>
       </div>
 
-      <hr />
-      <h3>Test trimitere</h3>
-      <div className="field-row">
-        <input placeholder="email@exemplu.com" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} />
-        <button className="btn" type="button" onClick={handleTest}>
-          Trimite email de test
-        </button>
+      <div className="test-box">
+        <div className="form-section-title">Test trimitere</div>
+        <div className="test-row">
+          <input
+            placeholder="email@exemplu.com"
+            value={testEmail}
+            onChange={(e) => setTestEmail(e.target.value)}
+            aria-label="Adresa pentru emailul de test"
+          />
+          <button className="btn" type="button" onClick={handleTest} disabled={!testEmail}>
+            Trimite email de test
+          </button>
+        </div>
       </div>
     </form>
   );

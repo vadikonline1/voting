@@ -351,39 +351,48 @@ def send_results(
 
 
 # --------------------------------------------------------------- smtp -----
-@router.get("/smtp", response_model=schemas.SmtpSettingsOut)
-def get_smtp_settings(username: str = Depends(require_admin), db: Session = Depends(get_db)):
-    smtp, _source = get_smtp(db)
+def _smtp_out(smtp) -> schemas.SmtpSettingsOut:
     return schemas.SmtpSettingsOut(
         enabled=smtp.enabled, host=smtp.host, port=smtp.port, username=smtp.username,
         has_password=bool(smtp.password), from_email=smtp.from_email, from_name=smtp.from_name,
         use_tls=smtp.use_tls, subject_template=smtp.subject_template, body_template=smtp.body_template,
+        env_managed=bool(settings.smtp_host),
     )
+
+
+@router.get("/smtp", response_model=schemas.SmtpSettingsOut)
+def get_smtp_settings(username: str = Depends(require_admin), db: Session = Depends(get_db)):
+    smtp, _source = get_smtp(db)
+    return _smtp_out(smtp)
 
 
 @router.put("/smtp", response_model=schemas.SmtpSettingsOut)
 def update_smtp(payload: schemas.SmtpSettingsIn, username: str = Depends(require_admin), db: Session = Depends(get_db)):
     smtp = db.query(models.SmtpSettings).first()
-    smtp.enabled = payload.enabled
-    smtp.host = payload.host
-    smtp.port = payload.port
-    smtp.username = payload.username
-    if payload.password is not None and payload.password != "":
-        smtp.password = payload.password
-    smtp.from_email = payload.from_email
-    smtp.from_name = payload.from_name
-    smtp.use_tls = payload.use_tls
-    if payload.subject_template:
-        smtp.subject_template = payload.subject_template
-    if payload.body_template:
-        smtp.body_template = payload.body_template
+    if settings.smtp_host:
+        # Connection settings come from .env: the panel can only change the email texts.
+        if payload.subject_template:
+            smtp.subject_template = payload.subject_template
+        if payload.body_template:
+            smtp.body_template = payload.body_template
+    else:
+        smtp.enabled = payload.enabled
+        smtp.host = payload.host
+        smtp.port = payload.port
+        smtp.username = payload.username
+        if payload.password is not None and payload.password != "":
+            smtp.password = payload.password
+        smtp.from_email = payload.from_email
+        smtp.from_name = payload.from_name
+        smtp.use_tls = payload.use_tls
+        if payload.subject_template:
+            smtp.subject_template = payload.subject_template
+        if payload.body_template:
+            smtp.body_template = payload.body_template
     db.commit()
     db.refresh(smtp)
-    return schemas.SmtpSettingsOut(
-        enabled=smtp.enabled, host=smtp.host, port=smtp.port, username=smtp.username,
-        has_password=bool(smtp.password), from_email=smtp.from_email, from_name=smtp.from_name,
-        use_tls=smtp.use_tls, subject_template=smtp.subject_template, body_template=smtp.body_template,
-    )
+    effective, _source = get_smtp(db)
+    return _smtp_out(effective)
 
 
 @router.post("/smtp/test")

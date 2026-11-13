@@ -166,3 +166,4 @@ class SmtpSettingsOut(BaseModel):
     use_tls: bool
     subject_template: str
     body_template: str
+    env_managed: bool = False  # True when SMTP_HOST is set: connection fields come from .env
