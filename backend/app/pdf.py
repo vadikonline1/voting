@@ -15,7 +15,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-from .ballot_text import build_ballot_texts
+from .ballot_text import build_ballot_texts, question_label
 
 # Register a Unicode TTF font so Romanian diacritics (ă, â, î, ș, ț) render correctly -
 # the base14 PDF fonts (Helvetica) do not support them.
@@ -49,6 +49,7 @@ def generate_receipt_pdf(
     submitted_at: datetime,
     signature_path: str | None,
     output_path: str,
+    gdpr_consent_at: datetime | None = None,
 ) -> str:
     texts = build_ballot_texts(election, voter)
     questions = __import__("json").loads(election.questions_json or "[]")
@@ -76,7 +77,7 @@ def generate_receipt_pdf(
 
     for i, q in enumerate(questions, start=1):
         qid = q["id"]
-        elements.append(Paragraph(f"Hotărârea nr. {i}: {q['text']}", h2_style))
+        elements.append(Paragraph(question_label(q, i), h2_style))
         elements.append(Paragraph(f"Vot: <b>{_answer_text(q, answers.get(qid))}</b>", normal_style))
         elements.append(Spacer(1, 3 * mm))
 
@@ -84,6 +85,8 @@ def generate_receipt_pdf(
         ["ID vot (token):", voter.id if voter else ""],
         ["Data și ora votării:", submitted_at.strftime("%d.%m.%Y %H:%M:%S UTC")],
     ]
+    if gdpr_consent_at:
+        meta_rows.append(["Consimțământ GDPR:", gdpr_consent_at.strftime("%d.%m.%Y %H:%M:%S UTC")])
     meta_table = Table(meta_rows, colWidths=[45 * mm, 120 * mm])
     meta_table.setStyle(TableStyle([
         ("FONTNAME", (0, 0), (-1, -1), "DejaVuSans"),

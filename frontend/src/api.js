@@ -13,7 +13,13 @@ async function request(path, options = {}) {
     data = null;
   }
   if (!res.ok) {
-    const message = (data && data.detail) || `Eroare ${res.status}`;
+    const detail = data && data.detail;
+    let message = `Eroare ${res.status}`;
+    if (typeof detail === "string" && detail) {
+      message = detail;
+    } else if (Array.isArray(detail)) {
+      message = detail.map((item) => (item && item.msg) || String(item)).join("; ");
+    }
     throw new Error(message);
   }
   return data;

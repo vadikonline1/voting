@@ -56,6 +56,9 @@ def _election_to_out(e: models.Election) -> schemas.ElectionOut:
         questions=json.loads(e.questions_json or "[]"),
         is_active=e.is_active,
         require_signature=e.require_signature,
+        email_with_attachment=bool(e.email_with_attachment),
+        email_cc=e.email_cc or "",
+        email_bcc=e.email_bcc or "",
         created_at=e.created_at,
         updated_at=e.updated_at,
     )
@@ -73,6 +76,9 @@ def _apply_election_fields(election: models.Election, payload: schemas.ElectionI
     election.questions_json = json.dumps([q.model_dump() for q in payload.questions], ensure_ascii=False)
     election.is_active = payload.is_active
     election.require_signature = payload.require_signature
+    election.email_with_attachment = payload.email_with_attachment
+    election.email_cc = payload.email_cc
+    election.email_bcc = payload.email_bcc
 
 
 # -------------------------------------------------------------- elections --

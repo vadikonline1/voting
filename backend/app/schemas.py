@@ -6,10 +6,17 @@ from pydantic import BaseModel, Field
 
 class Question(BaseModel):
     id: str
+    number: str = ""  # display number, e.g. "1", "2", "3.a" (empty -> fallback to position)
     text: str
     type: str = "single"  # "single" | "multiple"
-    options: List[str] = Field(default_factory=lambda: ["Da/Pro", "Nu/Contra"])
+    options: List[str] = Field(default_factory=lambda: ["Pentru", "Împotriva"])
     required: bool = True
+
+    # Conditional logic: if the answer to `depends_on` equals `depends_value`,
+    # this question is disabled and automatically receives `auto_answer`.
+    depends_on: Optional[str] = None
+    depends_value: Optional[str] = None
+    auto_answer: Optional[str] = None
 
 
 class ElectionIn(BaseModel):
@@ -24,6 +31,9 @@ class ElectionIn(BaseModel):
     questions: List[Question] = Field(default_factory=list)
     is_active: bool = True
     require_signature: bool = True
+    email_with_attachment: bool = True
+    email_cc: str = ""
+    email_bcc: str = ""
 
 
 class ElectionOut(ElectionIn):
@@ -32,13 +42,23 @@ class ElectionOut(ElectionIn):
     updated_at: datetime
 
 
+class VoterData(BaseModel):
+    nume_prenume: str = ""
+    phone: str = ""
+    str_locatar: str = ""
+    email: str = ""
+    nr_proprietate: str = ""
+
+
 class BallotPublicOut(BaseModel):
-    """What an anonymous voter sees when opening /b/{uuid}."""
+    """What an anonymous voter sees when opening /{uuid}."""
     title: str
     date_line: str
     city_line: str
     paragraph1: str
     paragraph2: str
+    gdpr_text: str
+    voter: VoterData
     questions: List[Question]
     require_signature: bool
     already_voted: bool
@@ -47,7 +67,9 @@ class BallotPublicOut(BaseModel):
 
 
 class VoteSubmission(BaseModel):
-    answers: Dict[str, Any]
+    answers: Dict[str, Any] = Field(default_factory=dict)
+    voter: VoterData = Field(default_factory=VoterData)
+    gdpr_consent: bool = False
     signature_png_base64: Optional[str] = None
 
 

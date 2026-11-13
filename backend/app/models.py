@@ -69,6 +69,12 @@ class Election(Base):
 
     is_active = Column(Boolean, default=True)
     require_signature = Column(Boolean, default=True)
+
+    # --- Confirmation email options (per election) -------------------------
+    email_with_attachment = Column(Boolean, default=True)  # False = send the email without the PDF
+    email_cc = Column(String, default="")                  # optional copy addresses, comma separated
+    email_bcc = Column(String, default="")                 # optional hidden copy addresses, comma separated
+
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
@@ -115,6 +121,7 @@ class Vote(Base):
     signature_path = Column(String, nullable=True)
     receipt_pdf_path = Column(String, nullable=True)
     email_sent = Column(Boolean, default=False)
+    gdpr_consent_at = Column(DateTime, nullable=True)
     submitted_at = Column(DateTime, default=utcnow)
     ip_address = Column(String, default="")
 

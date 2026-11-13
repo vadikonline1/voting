@@ -44,7 +44,7 @@ a { color: var(--primary); }
   padding: 40px 16px;
 }
 
-.vote-card { width: 100%; max-width: 640px; }
+.vote-card { width: 100%; max-width: 720px; }
 
 .login-card { width: 100%; max-width: 360px; }
 
@@ -67,6 +67,85 @@ h2 { font-size: 1.25rem; }
   line-height: 1.5;
   margin-bottom: 14px;
 }
+
+.section-title {
+  font-size: 1.05rem;
+  margin: 6px 0 4px;
+}
+
+.section-hint { margin-top: 0; }
+
+.voter-section,
+.questions-section {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 8px;
+  margin-bottom: 18px;
+}
+
+.q-number { font-weight: 700; }
+
+.question-auto {
+  background: #f4f6f9;
+  border-color: #cfd6e2;
+}
+
+.option-disabled { color: var(--muted); }
+
+.auto-note {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: #4b5b76;
+  background: #eef2f9;
+  border-left: 3px solid var(--primary);
+  padding: 8px 10px;
+  border-radius: 0 6px 6px 0;
+}
+
+.field-invalid input,
+.field-invalid select,
+.field-invalid textarea {
+  border-color: var(--danger);
+  background: #fff7f7;
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.gdpr-field {
+  align-items: flex-start;
+  line-height: 1.45;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fafbfc;
+}
+
+.gdpr-field input { margin-top: 3px; flex-shrink: 0; }
+.gdpr-field.field-invalid { border-color: var(--danger); }
+
+.dependency-editor {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: #fafbfc;
+}
+
+.dependency-title {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #46536b;
+  margin-bottom: 8px;
+}
+
+.dependency-hint { margin: 8px 0 0; }
+
+.dependency-editor .field { margin-bottom: 0; }
 
 .field {
   display: flex;
@@ -175,3 +254,9 @@ h2 { font-size: 1.25rem; }
 
 .results-question { margin-bottom: 16px; }
 .results-question ul { padding-left: 18px; }
+
+@media (max-width: 640px) {
+  .field-row { flex-direction: column; gap: 10px; }
+  .vote-page { padding: 18px 10px; }
+  .card { padding: 18px 16px; }
+}

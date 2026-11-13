@@ -200,9 +200,11 @@ export default function AdminElectionDetail() {
       {tab === "results" && resultsData && (
         <div className="card">
           <h3>Total voturi: {resultsData.total_votes}</h3>
-          {resultsData.questions.map((q) => (
+          {resultsData.questions.map((q, idx) => (
             <div key={q.id} className="results-question">
-              <h4>{q.text}</h4>
+              <h4>
+                {String(q.number || "").trim() || String(idx + 1)}. {q.text}
+              </h4>
               <ul>
                 {Object.entries(resultsData.tally[q.id] || {}).map(([option, cnt]) => (
                   <li key={option}>

@@ -46,8 +46,10 @@ export default function AdminSmtp() {
     <form className="card" onSubmit={handleSave}>
       <h2>Setări SMTP</h2>
       <p className="muted">
-        Folosite pentru a trimite automat confirmarea votului (cu buletinul PDF semnat atașat) pe
-        email, atunci când link-ul de vot are o adresă de email asociată.
+        Folosite pentru a trimite automat confirmarea votului pe email, atunci când votantul indică o
+        adresă de email. Dacă trimiterea cu PDF este activată din setările votului, buletinul semnat este
+        atașat; altfel emailul conține textul legal și linkul de descărcare. Copiile CC/BCC se configurează
+        per vot.
       </p>
 
       <label className="checkbox-field">

@@ -2,13 +2,26 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 
-function emptyQuestion() {
+function nextNumber(questions) {
+  let max = 0;
+  for (const q of questions || []) {
+    const match = String(q.number || "").match(/^(\d+)/);
+    if (match) max = Math.max(max, Number(match[1]));
+  }
+  return String(max + 1);
+}
+
+function emptyQuestion(questions = []) {
   return {
     id: `q${Date.now()}${Math.floor(Math.random() * 1000)}`,
+    number: nextNumber(questions),
     text: "",
     type: "single",
-    options: ["Da/Pro", "Nu/Contra"],
+    options: ["Pentru", "Împotriva"],
     required: true,
+    depends_on: null,
+    depends_value: null,
+    auto_answer: null,
   };
 }
 
@@ -25,6 +38,9 @@ function emptyElection() {
     questions: [emptyQuestion()],
     is_active: true,
     require_signature: true,
+    email_with_attachment: true,
+    email_cc: "",
+    email_bcc: "",
   };
 }
 
@@ -55,13 +71,44 @@ export default function AdminElections() {
       ...e,
       start_date_vot: toInputDate(e.start_date_vot),
       end_date_vot: toInputDate(e.end_date_vot),
-      questions: e.questions.map((q) => ({ ...q })),
+      questions: e.questions.map((q, i) => ({
+        ...q,
+        number: q.number || String(i + 1),
+        options: q.options && q.options.length ? q.options : ["Pentru", "Împotriva"],
+        depends_on: q.depends_on || null,
+        depends_value: q.depends_value || null,
+        auto_answer: q.auto_answer || null,
+      })),
     });
   }
 
   function updateQuestion(idx, patch) {
     setEditing((prev) => {
       const questions = prev.questions.map((q, i) => (i === idx ? { ...q, ...patch } : q));
+      return { ...prev, questions };
+    });
+  }
+
+  function setDependency(qIdx, parentId) {
+    setEditing((prev) => {
+      const questions = prev.questions.map((q, i) => {
+        if (i !== qIdx) return q;
+        if (!parentId) {
+          return { ...q, depends_on: null, depends_value: null, auto_answer: null };
+        }
+        const parent = prev.questions.find((p) => p.id === parentId);
+        const parentOptions = (parent && parent.options) || [];
+        const fallbackAuto =
+          q.options.find((o) => /^împotriva$/i.test(o)) ||
+          q.options[q.options.length - 1] ||
+          "";
+        return {
+          ...q,
+          depends_on: parentId,
+          depends_value: parentOptions[0] || "",
+          auto_answer: fallbackAuto,
+        };
+      });
       return { ...prev, questions };
     });
   }
@@ -96,11 +143,19 @@ export default function AdminElections() {
   }
 
   function addQuestion() {
-    setEditing((prev) => ({ ...prev, questions: [...prev.questions, emptyQuestion()] }));
+    setEditing((prev) => ({ ...prev, questions: [...prev.questions, emptyQuestion(prev.questions)] }));
   }
 
   function removeQuestion(idx) {
-    setEditing((prev) => ({ ...prev, questions: prev.questions.filter((_, i) => i !== idx) }));
+    setEditing((prev) => {
+      const removed = prev.questions[idx];
+      const questions = prev.questions
+        .filter((_, i) => i !== idx)
+        .map((q) =>
+          q.depends_on === removed.id ? { ...q, depends_on: null, depends_value: null, auto_answer: null } : q
+        );
+      return { ...prev, questions };
+    });
   }
 
   async function handleSave(e) {
@@ -110,7 +165,14 @@ export default function AdminElections() {
     try {
       const payload = {
         ...editing,
-        questions: editing.questions.map((q) => ({ ...q, options: q.options.filter((o) => o.trim() !== "") })),
+        questions: editing.questions.map((q) => ({
+          ...q,
+          number: String(q.number || "").trim(),
+          options: q.options.filter((o) => o.trim() !== ""),
+          depends_on: q.depends_on || null,
+          depends_value: q.depends_on ? q.depends_value : null,
+          auto_answer: q.depends_on ? q.auto_answer : null,
+        })),
         start_date_vot: editing.start_date_vot ? new Date(editing.start_date_vot).toISOString() : null,
         end_date_vot: editing.end_date_vot ? new Date(editing.end_date_vot).toISOString() : null,
       };
@@ -201,6 +263,41 @@ export default function AdminElections() {
           </label>
         </div>
 
+        <h3>Expedierea confirmării pe email</h3>
+        <div className="field-row">
+          <label className="field">
+            <span>Buletinul se expediază</span>
+            <select
+              value={editing.email_with_attachment ? "with" : "without"}
+              onChange={(e) => setEditing({ ...editing, email_with_attachment: e.target.value === "with" })}
+            >
+              <option value="with">Cu atașament (PDF)</option>
+              <option value="without">Fără atașament</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Copie CC (opțional, virgulă între adrese)</span>
+            <input
+              type="text"
+              value={editing.email_cc}
+              onChange={(e) => setEditing({ ...editing, email_cc: e.target.value })}
+              placeholder="comisia@exemplu.com"
+            />
+          </label>
+          <label className="field">
+            <span>Copie BCC (opțional, ascunsă)</span>
+            <input
+              type="text"
+              value={editing.email_bcc}
+              onChange={(e) => setEditing({ ...editing, email_bcc: e.target.value })}
+              placeholder="arhiva@exemplu.com"
+            />
+          </label>
+        </div>
+        <p className="muted">
+          CC/BCC primesc automat o copie a fiecărei confirmări trimise pentru acest vot.
+        </p>
+
         <label className="checkbox-field">
           <input
             type="checkbox"
@@ -219,56 +316,142 @@ export default function AdminElections() {
           Necesită semnătură olografă la final
         </label>
 
-        <h3>Hotărâri supuse votului</h3>
-        {editing.questions.map((q, qIdx) => (
-          <div key={q.id} className="question-editor">
-            <div className="field-row">
-              <label className="field" style={{ flex: 2 }}>
-                <span>Textul hotărârii</span>
-                <input value={q.text} onChange={(e) => updateQuestion(qIdx, { text: e.target.value })} required />
-              </label>
-              <label className="field">
-                <span>Tip</span>
-                <select value={q.type} onChange={(e) => updateQuestion(qIdx, { type: e.target.value })}>
-                  <option value="single">O singură opțiune</option>
-                  <option value="multiple">Opțiuni multiple</option>
-                </select>
-              </label>
-              <label className="checkbox-field" style={{ alignSelf: "center" }}>
-                <input
-                  type="checkbox"
-                  checked={q.required}
-                  onChange={(e) => updateQuestion(qIdx, { required: e.target.checked })}
-                />
-                Obligatorie
-              </label>
-            </div>
-
-            <div className="options-editor">
-              {q.options.map((opt, optIdx) => (
-                <div key={optIdx} className="option-row">
+        <h3>Întrebări supuse votului</h3>
+        <p className="muted">
+          Numerotarea este liberă: 1, 2, 3, 3.a, 3.b etc. Opțiunile implicite sunt „Pentru” și „Împotriva”.
+        </p>
+        {editing.questions.map((q, qIdx) => {
+          const parentOptions = (() => {
+            const parent = editing.questions.find((p) => p.id === q.depends_on);
+            return (parent && parent.options) || [];
+          })();
+          return (
+            <div key={q.id} className="question-editor">
+              <div className="field-row">
+                <label className="field" style={{ maxWidth: 90 }}>
+                  <span>Nr.</span>
                   <input
-                    value={opt}
-                    placeholder={`Opțiune ${optIdx + 1}`}
-                    onChange={(e) => updateOption(qIdx, optIdx, e.target.value)}
+                    value={q.number}
+                    onChange={(e) => updateQuestion(qIdx, { number: e.target.value })}
+                    placeholder="3.a"
+                    required
                   />
-                  <button type="button" className="btn-link" onClick={() => removeOption(qIdx, optIdx)}>
-                    ×
-                  </button>
+                </label>
+                <label className="field" style={{ flex: 2 }}>
+                  <span>Textul întrebării</span>
+                  <input value={q.text} onChange={(e) => updateQuestion(qIdx, { text: e.target.value })} required />
+                </label>
+                <label className="field">
+                  <span>Tip</span>
+                  <select
+                    value={q.type}
+                    onChange={(e) => {
+                      const type = e.target.value;
+                      updateQuestion(qIdx, {
+                        type,
+                        ...(type !== "single"
+                          ? { depends_on: null, depends_value: null, auto_answer: null }
+                          : {}),
+                      });
+                    }}
+                  >
+                    <option value="single">O singură opțiune</option>
+                    <option value="multiple">Opțiuni multiple</option>
+                  </select>
+                </label>
+                <label className="checkbox-field" style={{ alignSelf: "center" }}>
+                  <input
+                    type="checkbox"
+                    checked={q.required}
+                    onChange={(e) => updateQuestion(qIdx, { required: e.target.checked })}
+                  />
+                  Obligatorie
+                </label>
+              </div>
+
+              <div className="options-editor">
+                {q.options.map((opt, optIdx) => (
+                  <div key={optIdx} className="option-row">
+                    <input
+                      value={opt}
+                      placeholder={`Opțiune ${optIdx + 1}`}
+                      onChange={(e) => updateOption(qIdx, optIdx, e.target.value)}
+                    />
+                    <button type="button" className="btn-link" onClick={() => removeOption(qIdx, optIdx)}>
+                      ×
+                    </button>
+                  </div>
+                ))}
+                <button type="button" className="btn-link" onClick={() => addOption(qIdx)}>
+                  + opțiune
+                </button>
+              </div>
+
+              {qIdx > 0 && q.type === "single" && (
+                <div className="dependency-editor">
+                  <span className="dependency-title">Logică condiționată (opțional)</span>
+                  <div className="field-row">
+                    <label className="field">
+                      <span>Depinde de întrebarea</span>
+                      <select value={q.depends_on || ""} onChange={(e) => setDependency(qIdx, e.target.value)}>
+                        <option value="">— nu depinde —</option>
+                        {editing.questions.slice(0, qIdx).map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.number || "?"}. {p.text ? p.text.slice(0, 60) : "(fără text)"}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {q.depends_on && (
+                      <>
+                        <label className="field">
+                          <span>Dacă răspunsul este</span>
+                          <select
+                            value={q.depends_value || ""}
+                            onChange={(e) => updateQuestion(qIdx, { depends_value: e.target.value })}
+                          >
+                            {parentOptions.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>Atunci setează automat</span>
+                          <select
+                            value={q.auto_answer || ""}
+                            onChange={(e) => updateQuestion(qIdx, { auto_answer: e.target.value })}
+                          >
+                            {q.options.map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </>
+                    )}
+                  </div>
+                  {q.depends_on && (
+                    <p className="muted dependency-hint">
+                      Dacă răspunsul la întrebarea anterioară este „{q.depends_value}”, această întrebare devine
+                      inactivă și primește automat răspunsul „{q.auto_answer}”. În caz contrar, votantul o poate
+                      completa liber.
+                    </p>
+                  )}
                 </div>
-              ))}
-              <button type="button" className="btn-link" onClick={() => addOption(qIdx)}>
-                + opțiune
+              )}
+
+              <button type="button" className="btn-link btn-danger" onClick={() => removeQuestion(qIdx)}>
+                Șterge întrebarea
               </button>
+              <hr />
             </div>
-            <button type="button" className="btn-link btn-danger" onClick={() => removeQuestion(qIdx)}>
-              Șterge hotărârea
-            </button>
-            <hr />
-          </div>
-        ))}
+          );
+        })}
         <button type="button" className="btn" onClick={addQuestion}>
-          + Adaugă hotărâre
+          + Adaugă întrebare
         </button>
 
         <div className="actions-row">
@@ -300,8 +483,9 @@ export default function AdminElections() {
               APC nr. {e.nr_apc || "—"} · {e.str_apc || "—"} · {e.oras || "—"}
             </p>
             <p className="muted">
-              {e.is_active ? "Activ" : "Inactiv"} · {e.questions.length} hotărâri
+              {e.is_active ? "Activ" : "Inactiv"} · {e.questions.length} întrebări
               {e.require_signature ? " · semnătură obligatorie" : ""}
+              {e.email_with_attachment ? " · email cu PDF" : " · email fără atașament"}
             </p>
             <div className="actions-row">
               <button className="btn" onClick={() => startEdit(e)}>

@@ -1,8 +1,10 @@
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from sqlalchemy import text
 
 from .database import Base, engine, SessionLocal
 from . import models
@@ -11,6 +13,36 @@ from .config import settings
 from .routers import ballot, admin
 
 Base.metadata.create_all(bind=engine)
+
+
+def _migrate_sqlite():
+    """Add columns introduced after the initial release to an existing SQLite database.
+
+    `Base.metadata.create_all` only creates missing tables; it never alters existing ones.
+    These lightweight, idempotent ALTERs keep an existing /data/voting.db usable after an image
+    update, without requiring a full migration tool.
+    """
+    if not settings.database_url.startswith("sqlite"):
+        return
+    additions = {
+        "elections": {
+            "email_with_attachment": "BOOLEAN DEFAULT 1",
+            "email_cc": "VARCHAR DEFAULT ''",
+            "email_bcc": "VARCHAR DEFAULT ''",
+        },
+        "votes": {
+            "gdpr_consent_at": "DATETIME",
+        },
+    }
+    with engine.begin() as conn:
+        for table, columns in additions.items():
+            existing = {row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))}
+            for name, ddl in columns.items():
+                if name not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
+
+
+_migrate_sqlite()
 
 
 def _bootstrap():
@@ -32,8 +64,8 @@ def _bootstrap():
                 oras="Chișinău",
                 tip_proprietate="apartament",
                 questions_json=(
-                    '[{"id":"q1","text":"Aprobarea dării de seamă a administratorului pe anul curent.",'
-                    '"type":"single","options":["Da/Pro","Nu/Contra"],"required":true}]'
+                    '[{"id":"q1","number":"1","text":"Aprobarea dării de seamă a administratorului pe anul curent.",'
+                    '"type":"single","options":["Pentru","Împotriva"],"required":true}]'
                 ),
                 is_active=True,
                 require_signature=True,
@@ -46,6 +78,19 @@ def _bootstrap():
 _bootstrap()
 
 app = FastAPI(title="Sistem de Vot")
+
+
+@app.exception_handler(RequestValidationError)
+async def _validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Return a readable message instead of the default list of Pydantic errors."""
+    messages = []
+    for err in exc.errors():
+        location = " → ".join(str(part) for part in err.get("loc", ()) if part != "body")
+        message = err.get("msg", "valoare invalidă")
+        messages.append(f"{location}: {message}" if location else message)
+    detail = "; ".join(messages) or "Datele trimise nu sunt valide."
+    return JSONResponse(status_code=422, content={"detail": detail})
+
 
 app.include_router(ballot.router)
 app.include_router(admin.router)

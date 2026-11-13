@@ -1,9 +1,24 @@
-"""Single source of truth for the fixed legal ballot text (buletin de vot APC), so the
-web page and the generated PDF always show exactly the same wording. Only the bracketed
-variables change; everything else is fixed legal text."""
+"""Single source of truth for the fixed legal ballot text (buletin de vot APC), used by the
+generated PDF and the confirmation email. Only the bracketed variables change; everything
+else is fixed legal text. The web voting page intentionally does not display these paragraphs."""
 from datetime import datetime
 
 PLACEHOLDER = "…………………"
+
+GDPR_TEXT = (
+    "Accept prelucrarea datelor mele cu caracter personal (nume și prenume, telefon, "
+    "adresă de corespondență, adresă electronică și numărul unității) în scopul exclusiv "
+    "al organizării și desfășurării acestei votări, în conformitate cu Regulamentul (UE) "
+    "2016/679 (GDPR). Datele nu sunt folosite în alte scopuri și nu sunt transmise unor terți."
+)
+
+
+def question_label(question: dict, index: int) -> str:
+    """Display label for a decision/question: '1. text', '3.a. text', etc.
+    The legacy fixed prefix 'Hotărârea nr.' is intentionally not used."""
+    number = str(question.get("number") or "").strip() or str(index)
+    return f"{number}. {question.get('text', '').strip()}"
+
 
 
 def format_date_ro(dt: datetime | None) -> str:
