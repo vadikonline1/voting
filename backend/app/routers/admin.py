@@ -1,3 +1,4 @@
+import re
 import csv
 import io
 import json
@@ -84,17 +85,32 @@ def change_password(
 
 
 # -------------------------------------------------------------- helpers ----
+def _property_types_from_payload(items) -> list[dict]:
+    """Keep the distinct property types (apartament, debara, parcare, or custom), without numbers."""
+    types: list[str] = []
+    for item in items:
+        tip = (item.tip_proprietate or "").strip().lower()
+        if not tip:
+            continue
+        if len(tip) > 30 or not re.match(r"^[a-zăâîșțA-Z ]+$", tip):
+            raise HTTPException(status_code=400, detail=f"Tip de imobil invalid: „{item.tip_proprietate}”.")
+        if tip not in types:
+            types.append(tip)
+    return [{"tip_proprietate": t} for t in types]
+
+
 def _vote_url(nr_apc: str | None) -> str:
     base = settings.public_base_url.rstrip("/")
     return f"{base}/{nr_apc}" if nr_apc else ""
 
 
 def _election_properties(e: models.Election) -> list[dict]:
+    """Allowed property types of the APC (the numbers are typed by the owners)."""
     try:
         items = json.loads(e.properties_json or "[]")
     except (ValueError, TypeError):
         return []
-    return [i for i in items if isinstance(i, dict) and i.get("nr_proprietate")]
+    return [{"tip_proprietate": i["tip_proprietate"]} for i in items if isinstance(i, dict) and i.get("tip_proprietate")]
 
 
 def _ensure_single_active(db: Session, payload: schemas.ElectionIn, election_id: int | None):
@@ -127,7 +143,7 @@ def _election_to_out(e: models.Election) -> schemas.ElectionOut:
         start_date_vot=e.start_date_vot,
         end_date_vot=e.end_date_vot,
         tip_proprietate=e.tip_proprietate or "apartament",
-        properties=[schemas.PropertyItem(**p) for p in _election_properties(e)],
+        properties=[schemas.PropertyItem(tip_proprietate=p["tip_proprietate"]) for p in _election_properties(e)],
         allow_multiple_properties=bool(e.allow_multiple_properties),
         vote_url=_vote_url(e.nr_apc),
         questions=json.loads(e.questions_json or "[]"),
@@ -155,8 +171,7 @@ def _apply_election_fields(election: models.Election, payload: schemas.ElectionI
     election.tip_proprietate = payload.tip_proprietate
     election.allow_multiple_properties = bool(payload.allow_multiple_properties)
     election.properties_json = json.dumps(
-        [{"tip_proprietate": p.tip_proprietate, "nr_proprietate": p.nr_proprietate.strip()}
-         for p in payload.properties if p.nr_proprietate.strip()],
+        _property_types_from_payload(payload.properties),
         ensure_ascii=False,
     )
     election.questions_json = json.dumps([q.model_dump() for q in payload.questions], ensure_ascii=False)

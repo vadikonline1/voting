@@ -35,7 +35,7 @@ function emptyElection() {
     start_date_vot: "",
     end_date_vot: "",
     tip_proprietate: "apartament",
-    properties_text: "",
+    property_types: ["apartament", "debara", "parcare"],
     questions: [emptyQuestion()],
     is_active: true,
     require_signature: true,
@@ -45,20 +45,6 @@ function emptyElection() {
     results_email: "",
     notify_results_on_vote: true,
   };
-}
-
-/** One property per line: "apartament; 12" (type optional, defaults to apartament). */
-function parsePropertiesText(text) {
-  return (text || "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [tipRaw = "", nrRaw = ""] = line.includes(";") ? line.split(";") : ["apartament", line];
-      const tip = (tipRaw.trim().toLowerCase() || "apartament");
-      return { tip_proprietate: tip, nr_proprietate: nrRaw.trim() };
-    })
-    .filter((p) => p.nr_proprietate);
 }
 
 function toInputDate(value) {
@@ -72,6 +58,17 @@ export default function AdminElections() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [newPropType, setNewPropType] = useState("");
+  function addPropType() {
+    const t = newPropType.trim().toLowerCase();
+    if (t) {
+      setEditing((prev) => ({
+        ...prev,
+        property_types: (prev.property_types || []).includes(t) ? prev.property_types : [...(prev.property_types || []), t],
+      }));
+    }
+    setNewPropType("");
+  }
 
   function load() {
     api.listElections().then(setElections).catch((e) => setError(e.message)).finally(() => setLoading(false));
@@ -88,7 +85,7 @@ export default function AdminElections() {
       ...e,
       start_date_vot: toInputDate(e.start_date_vot),
       end_date_vot: toInputDate(e.end_date_vot),
-      properties_text: (e.properties || []).map((p) => `${p.tip_proprietate}; ${p.nr_proprietate}`).join("\n"),
+      property_types: [...new Set((e.properties || []).map((p) => p.tip_proprietate))],
       questions: e.questions.map((q, i) => ({
         ...q,
         number: q.number || String(i + 1),
@@ -191,7 +188,7 @@ export default function AdminElections() {
           depends_value: q.depends_on ? q.depends_value : null,
           auto_answer: q.depends_on ? q.auto_answer : null,
         })),
-        properties: parsePropertiesText(editing.properties_text),
+        properties: (editing.property_types || []).map((t) => ({ tip_proprietate: t, nr_proprietate: "" })),
         start_date_vot: editing.start_date_vot ? new Date(editing.start_date_vot).toISOString() : null,
         end_date_vot: editing.end_date_vot ? new Date(editing.end_date_vot).toISOString() : null,
       };
@@ -283,18 +280,71 @@ export default function AdminElections() {
           <span>Permite votarea mai multor imobile (dacă este bifat, proprietarul poate vota mai multe imobile într-un singur buletin; altfel, doar unul)</span>
         </label>
 
-        <label className="field">
-          <span>Imobilele APC (un rând pe imobil: tip; număr) — tip: apartament, debara sau parcare</span>
-          <textarea
-            rows={5}
-            value={editing.properties_text}
-            onChange={(e) => setEditing({ ...editing, properties_text: e.target.value })}
-            placeholder={"apartament; 12\ndebara; 3\nparcare; P7"}
-          />
-          <span className="muted">
-            Proprietarul bifează pe linkul APC imobilele pe care le deține. Fiecare imobil poate fi votat o singură dată.
-          </span>
-        </label>
+        <div className="prop-types">
+          <span className="prop-types-title">Tipurile de imobile din acest APC</span>
+          <p className="muted section-hint">
+            Alegeți tipurile. Proprietarul va introduce singur numărul fiecărui imobil, pe buletinul de vot.
+          </p>
+          <div className="prop-type-chips">
+            {["apartament", "debara", "parcare"].map((t) => {
+              const on = (editing.property_types || []).includes(t);
+              return (
+                <label key={t} className={`prop-chip ${on ? "prop-chip-on" : ""}`}>
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={() =>
+                      setEditing((prev) => ({
+                        ...prev,
+                        property_types: on
+                          ? prev.property_types.filter((x) => x !== t)
+                          : [...(prev.property_types || []), t],
+                      }))
+                    }
+                  />
+                  <span>{t.charAt(0).toUpperCase() + t.slice(1)}</span>
+                </label>
+              );
+            })}
+            {(editing.property_types || [])
+              .filter((t) => !["apartament", "debara", "parcare"].includes(t))
+              .map((t) => (
+                <span key={t} className="prop-chip prop-chip-on">
+                  <span>{t.charAt(0).toUpperCase() + t.slice(1)}</span>
+                  <button
+                    type="button"
+                    className="prop-chip-remove"
+                    aria-label={`Șterge tipul ${t}`}
+                    onClick={() =>
+                      setEditing((prev) => ({
+                        ...prev,
+                        property_types: prev.property_types.filter((x) => x !== t),
+                      }))
+                    }
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+          </div>
+          <div className="prop-add-row">
+            <input
+              value={newPropType}
+              onChange={(e) => setNewPropType(e.target.value)}
+              placeholder="Alt tip de imobil (ex. boxă)"
+              maxLength={30}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addPropType();
+                }
+              }}
+            />
+            <button type="button" className="btn" onClick={addPropType}>
+              Adaugă tip
+            </button>
+          </div>
+        </div>
 
         <h3>Expedierea confirmării pe email</h3>
         <div className="field-row">

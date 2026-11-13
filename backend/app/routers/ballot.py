@@ -49,19 +49,19 @@ def _active_election(db: Session, nr_apc: str) -> models.Election:
     return election
 
 
-def _election_properties(election: models.Election) -> list[dict]:
+def _election_property_types(election: models.Election) -> list[str]:
+    """Property types the APC allows (apartament, debara, parcare, or custom ones).
+    The owner types the number of each property on the ballot."""
     try:
         items = json.loads(election.properties_json or "[]")
     except (ValueError, TypeError):
         items = []
-    out = []
+    types: list[str] = []
     for item in items if isinstance(items, list) else []:
-        if isinstance(item, dict) and item.get("nr_proprietate"):
-            out.append({
-                "tip_proprietate": item.get("tip_proprietate") or "apartament",
-                "nr_proprietate": str(item["nr_proprietate"]).strip(),
-            })
-    return out
+        tip = str(item.get("tip_proprietate", "") if isinstance(item, dict) else item).strip().lower()
+        if tip and tip not in types:
+            types.append(tip)
+    return types
 
 
 # ------------------------------------------------------------- voting logic --
@@ -143,14 +143,17 @@ def _clean_voter(voter: schemas.VoterData) -> dict:
 
 
 def _clean_properties(election: models.Election, items: list) -> list[dict]:
-    """Only properties listed by the APC can be voted; each one at most once in the vote."""
-    allowed = {(p["tip_proprietate"], p["nr_proprietate"]) for p in _election_properties(election)}
+    """Owner's properties: the type must be one the APC allows; the number is typed by the owner.
+    The same type+number is listed once per vote."""
+    allowed_types = set(_election_property_types(election))
     chosen: list[dict] = []
     for item in items:
-        tip = (item.tip_proprietate or "").strip()
-        nr = (item.nr_proprietate or "").strip()
-        if (tip, nr) not in allowed:
-            raise HTTPException(status_code=400, detail=f"Imobilul {tip} cu nr {nr} nu face parte din acest APC.")
+        tip = (item.tip_proprietate or "").strip().lower()
+        nr = re.sub(r"\s+", " ", (item.nr_proprietate or "").strip())
+        if tip not in allowed_types:
+            raise HTTPException(status_code=400, detail=f"Tipul de imobil „{tip}” nu este permis în acest APC.")
+        if not (1 <= len(nr) <= 30) or not _PROP_RE.match(nr):
+            raise HTTPException(status_code=400, detail=f"Numărul imobilului ({tip}) nu este valid.")
         if not any(c["tip_proprietate"] == tip and c["nr_proprietate"] == nr for c in chosen):
             chosen.append({"tip_proprietate": tip, "nr_proprietate": nr})
     if not chosen:
@@ -245,7 +248,7 @@ def get_apc_ballot(nr_apc: str, db: Session = Depends(get_db)):
         date_line=texts["date_line"],
         city_line=texts["city_line"],
         gdpr_text=GDPR_TEXT,
-        properties=[schemas.PropertyItem(**p) for p in _election_properties(election)],
+        properties=[schemas.PropertyItem(tip_proprietate=t, nr_proprietate="") for t in _election_property_types(election)],
         allow_multiple_properties=bool(election.allow_multiple_properties),
         questions=json.loads(election.questions_json or "[]"),
         require_signature=election.require_signature,

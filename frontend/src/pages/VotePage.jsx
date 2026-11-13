@@ -9,6 +9,11 @@ const STATUS_MESSAGES = {
 
 const TIP_LABELS = { apartament: "Apartament", debara: "Debara", parcare: "Parcare" };
 
+/** Known types get their Romanian label; custom types from the admin are capitalised. */
+function tipLabel(tip) {
+  return TIP_LABELS[tip] || tip.charAt(0).toUpperCase() + tip.slice(1);
+}
+
 const NAME_RE = /^[A-Za-zÀ-ÖØ-öø-ÿĀ-ž' .-]+$/;
 const PHONE_RE = /^\+?[0-9][0-9 ()\-.]{5,19}$/;
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
@@ -370,13 +375,13 @@ export default function VotePage() {
               ? "Puteți selecta mai multe imobile."
               : "Acest vot permite selectarea unui singur imobil."}
           </p>
-          <div className="property-list">
+          <div className="property-grid">
             {propertyTypes.map((tip) => {
               const ticked = selectedTypes.includes(tip);
               const disabled = !allowMultiple && selectedTypes.length > 0 && !ticked;
               const rows = numbers[tip] && numbers[tip].length ? numbers[tip] : [""];
               return (
-                <div key={tip} className="property-type">
+                <div key={tip} className={`property-card ${ticked ? "property-card-on" : ""}`}>
                   <label className="checkbox-field">
                     <input
                       type="checkbox"
@@ -384,7 +389,7 @@ export default function VotePage() {
                       disabled={disabled}
                       onChange={() => toggleType(tip)}
                     />
-                    <span>{TIP_LABELS[tip] || tip}</span>
+                    <span className="property-title">{tipLabel(tip)}</span>
                   </label>
                   {ticked && (
                     <div className="property-numbers">
