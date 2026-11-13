@@ -589,34 +589,73 @@ export default function AdminElections() {
         </button>
       </div>
       {error && <p className="error">{error}</p>}
-      <div className="elections-grid">
-        {elections.map((e) => (
-          <div key={e.id} className="card election-card">
-            <h3>{e.title}</h3>
-            <p className="muted">
-              APC nr. {e.nr_apc || "—"} · {e.str_apc || "—"} · {e.oras || "—"}
-            </p>
-            <p className="muted">
-              {e.is_active ? "Activ" : "Inactiv"} · {e.questions.length} întrebări
-              {e.require_signature ? " · semnătură obligatorie" : ""}
-              {e.email_with_attachment ? " · email cu PDF" : " · email fără atașament"}
-            </p>
-            {e.results_email && (
-              <p className="muted">Rezultate către: {e.results_email}</p>
+      <div className="table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>Titlu intern</th>
+              <th>APC nr.</th>
+              <th>Adresa și localitatea</th>
+              <th>Link de vot</th>
+              <th>Status</th>
+              <th>Întrebări</th>
+              <th>Email</th>
+              <th className="col-actions">Acțiuni</th>
+            </tr>
+          </thead>
+          <tbody>
+            {elections.length === 0 && (
+              <tr>
+                <td colSpan={8} className="table-empty">Nu există voturi. Creați primul vot cu „+ Vot nou”.</td>
+              </tr>
             )}
-            <div className="actions-row">
-              <button className="btn" onClick={() => startEdit(e)}>
-                Editează conținut
-              </button>
-              <Link className="btn" to={`/admin/elections/${e.id}`}>
-                Link-uri &amp; rezultate
-              </Link>
-              <button className="btn btn-danger" onClick={() => handleDelete(e.id)}>
-                Șterge
-              </button>
-            </div>
-          </div>
-        ))}
+            {elections.map((e) => (
+              <tr key={e.id}>
+                <td data-label="Titlu intern">
+                  <strong>{e.title}</strong>
+                </td>
+                <td data-label="APC nr.">{e.nr_apc || "—"}</td>
+                <td data-label="Adresa și localitatea">
+                  {[e.str_apc, e.oras].filter(Boolean).join(", ") || "—"}
+                </td>
+                <td data-label="Link de vot">
+                  {e.vote_url ? (
+                    <a href={e.vote_url} target="_blank" rel="noreferrer">
+                      /{e.nr_apc}
+                    </a>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+                <td data-label="Status">
+                  <span className={`status-pill ${e.is_active ? "status-on" : "status-off"}`}>
+                    {e.is_active ? "Activ" : "Inactiv"}
+                  </span>
+                </td>
+                <td data-label="Întrebări">{e.questions.length}</td>
+                <td data-label="Email">
+                  <span className="muted">
+                    {e.email_with_attachment ? "cu PDF" : "fără atașament"}
+                    {e.results_email ? ` · rezultate: ${e.results_email}` : ""}
+                  </span>
+                </td>
+                <td className="col-actions" data-label="Acțiuni">
+                  <div className="row-actions">
+                    <button className="btn" onClick={() => startEdit(e)}>
+                      Editează
+                    </button>
+                    <Link className="btn" to={`/admin/elections/${e.id}`}>
+                      Checklist
+                    </Link>
+                    <button className="btn btn-danger" onClick={() => handleDelete(e.id)}>
+                      Șterge
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

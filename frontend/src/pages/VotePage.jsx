@@ -18,6 +18,14 @@ const NAME_RE = /^[A-Za-zÀ-ÖØ-öø-ÿĀ-ž' .-]+$/;
 const PHONE_RE = /^\+?[0-9][0-9 ()\-.]{5,19}$/;
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
 
+const FIELD_LABELS = {
+  nume_prenume: "Nume și prenume",
+  phone: "Telefon",
+  str_locatar: "Adresa de corespondență",
+  email: "Adresa de email",
+  properties: "Imobile",
+};
+
 const EMPTY_VOTER = {
   nume_prenume: "",
   phone: "",
@@ -110,6 +118,7 @@ export default function VotePage() {
   const [gdprError, setGdprError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(null);
+  const [summary, setSummary] = useState([]);
   const sigRef = useRef(null);
 
   useEffect(() => {
@@ -209,22 +218,39 @@ export default function VotePage() {
     const errors = validateVoter(voter, selectedProps);
     const emptyRow = selectedTypes.find((tip) => (numbers[tip] || []).some((nr) => !(nr || "").trim()));
     if (!errors.properties && emptyRow) {
-      errors.properties = `Introduceți numărul pentru fiecare imobil de tip ${(TIP_LABELS[emptyRow] || emptyRow).toLowerCase()} bifat.`;
+      errors.properties = `Introduceți numărul pentru fiecare imobil de tip ${tipLabel(emptyRow).toLowerCase()} bifat.`;
     }
     setVoterErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      setError("Verificați datele introduse mai jos.");
-      return;
-    }
-    if (!gdpr) {
-      setGdprError("Trebuie să acceptați prelucrarea datelor personale (GDPR) pentru a vota.");
-      setError("Confirmați acordul GDPR pentru a trimite votul.");
-      return;
-    }
+
+    // Collect every missing or invalid item, so the owner sees exactly what to complete.
+    const missing = Object.entries(FIELD_LABELS)
+      .filter(([key]) => errors[key])
+      .map(([key]) => `${FIELD_LABELS[key]}: ${errors[key]}`);
+    if (!gdpr) missing.push("Acordul GDPR: bifați căsuța de acceptare a prelucrării datelor.");
     if (ballot.require_signature && (!sigRef.current || sigRef.current.isEmpty())) {
-      setError("Vă rugăm să semnați olograf înainte de a trimite votul.");
+      missing.push("Semnătura olografă: semnați în câmpul de mai jos.");
+    }
+    const unansweredQuestions = ballot.questions.filter((q, idx) => {
+      if (!q.required || auto[q.id] !== undefined) return false;
+      const value = effective[q.id];
+      return value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
+    });
+    unansweredQuestions.forEach((q) => {
+      missing.push(`Hotărârea ${String(q.number || "").trim() || ballot.questions.indexOf(q) + 1}: alegeți un răspuns.`);
+    });
+    if (!gdpr) setGdprError("Trebuie să acceptați prelucrarea datelor personale (GDPR) pentru a vota.");
+
+    if (missing.length > 0) {
+      setSummary(missing);
+      setError("");
+      // scroll to the first field that needs attention
+      setTimeout(() => {
+        const target = document.querySelector(".field-invalid, .question-missing, .gdpr-field, .property-card-missing");
+        if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 0);
       return;
     }
+    setSummary([]);
 
     setSubmitting(true);
     try {
@@ -293,6 +319,17 @@ export default function VotePage() {
     <div className="vote-page">
       <form className="card vote-card" onSubmit={handleSubmit} noValidate>
         <h1 className="ballot-title">{ballot.title}</h1>
+
+        {summary.length > 0 && (
+          <div className="error-summary" role="alert">
+            <strong>Mai trebuie completate sau corectate:</strong>
+            <ul>
+              {summary.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="date-city-row">
           <span>{ballot.date_line}</span>

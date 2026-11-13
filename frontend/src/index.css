@@ -615,3 +615,60 @@ h2 { font-size: 1.25rem; }
   .actions-row .btn { width: 100%; }
   .test-row button { width: 100%; }
 }
+
+/* --- Vote form: error summary ------------------------------------------ */
+.error-summary {
+  border: 1px solid #f0c4c4;
+  background: #fdf1f1;
+  color: #8a2222;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin: 0 0 18px;
+  font-size: 0.93rem;
+}
+.error-summary ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.question-missing { border-color: var(--danger); }
+
+/* --- Admin: elections table ---------------------------------------------- */
+.table-wrap {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow-x: auto;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+}
+.admin-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.admin-table th,
+.admin-table td {
+  padding: 12px 14px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+}
+.admin-table thead th {
+  background: #f7f8fb;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.admin-table tbody tr:hover { background: #fafbfd; }
+.admin-table tbody tr:last-child td { border-bottom: 0; }
+.admin-table .table-empty { text-align: center; color: var(--muted); padding: 28px; }
+.col-actions { width: 1%; white-space: nowrap; }
+.row-actions { display: flex; gap: 6px; flex-wrap: nowrap; }
+.row-actions .btn { min-height: 34px; padding: 6px 10px; font-size: 0.85rem; text-decoration: none; }
+.row-actions .btn-danger { background: #fff; }
+
+@media (max-width: 720px) {
+  /* stacked card rows on phones: each cell shows its own label */
+  .admin-table thead { display: none; }
+  .admin-table, .admin-table tbody, .admin-table tr, .admin-table td { display: block; width: 100%; }
+  .admin-table tr { border-bottom: 1px solid var(--border); padding: 8px 0; }
+  .admin-table td { border: 0; padding: 6px 14px; display: flex; justify-content: space-between; gap: 12px; }
+  .admin-table td::before { content: attr(data-label); color: var(--muted); font-size: 0.8rem; font-weight: 600; }
+  .admin-table .col-actions { width: auto; }
+  .row-actions { flex-wrap: wrap; justify-content: flex-end; }
+}
