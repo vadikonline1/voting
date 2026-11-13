@@ -100,18 +100,22 @@ def _paragraphs(text: str) -> str:
 
 
 def _delivery_note(attach_pdf: bool, receipt_url: str | None) -> tuple[str, str]:
-    """(plain text, html) note about how the ballot PDF is delivered."""
+    """(plain text, html) with the PDF attachment note and a link that opens the ballot in the browser."""
+    lines_text = []
+    lines_html = []
     if attach_pdf:
-        text = "Buletinul de vot completat și semnat este atașat acestui email (PDF)."
-        return text, escape(text)
+        note = "Buletinul de vot completat și semnat este atașat acestui email, în format PDF."
+        lines_text.append(note)
+        lines_html.append(escape(note))
     if receipt_url:
-        text = f"Buletinul de vot completat poate fi descărcat aici: {receipt_url}"
-        html = (
-            "Buletinul de vot completat poate fi descărcat accesând "
-            f'<a href="{escape(receipt_url)}" style="color:#2452b5;">acest link</a>.'
+        open_url = f"{receipt_url}?inline=1"
+        lines_text.append(f"Deschideți buletinul de vot online: {open_url}")
+        lines_html.append(
+            f'<a href="{escape(open_url)}" style="display:inline-block;margin-top:8px;padding:10px 18px;'
+            'border-radius:999px;background:#2452b5;color:#ffffff;text-decoration:none;font-weight:600;">'
+            "Deschide votul</a>"
         )
-        return text, html
-    return "", ""
+    return "\n".join(lines_text), "<br>".join(lines_html)
 
 
 def build_email_text(
