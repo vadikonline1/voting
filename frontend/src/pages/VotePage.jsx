@@ -151,6 +151,21 @@ function resolveAnswers(questions, answers) {
 
 const propKey = (p) => `${p.tip_proprietate}|${p.nr_proprietate}`;
 
+/** The questions the owner sees: a chestiune with a property type is shown only when the owner
+ * ticked that type (and so are its questions). */
+function visibleQuestions(questions, selectedTypes) {
+  const out = [];
+  let show = true;
+  for (const q of questions || []) {
+    if (q.type === "section") {
+      const wanted = String(q.property_type || "").trim().toLowerCase();
+      show = !wanted || selectedTypes.includes(wanted);
+    }
+    if (show) out.push(q);
+  }
+  return out;
+}
+
 /** Items of the ballot in order: a chestiune (section, label null) or a question with its label.
  * Letters restart after each chestiune. */
 function labelledItems(questions) {
@@ -199,9 +214,14 @@ export default function VotePage() {
       .finally(() => setLoading(false));
   }, [nrApc]);
 
+  const visibleQs = useMemo(
+    () => visibleQuestions(ballot?.questions || [], selectedTypes),
+    [ballot, selectedTypes]
+  );
+
   const { auto, effective, reasons } = useMemo(
-    () => resolveAnswers(ballot?.questions || [], answers),
-    [ballot, answers]
+    () => resolveAnswers(visibleQs, answers),
+    [visibleQs, answers]
   );
 
   // property types offered by the APC, in the order the admin listed them
@@ -300,13 +320,13 @@ export default function VotePage() {
     if (ballot.require_signature && (!sigRef.current || sigRef.current.isEmpty())) {
       missing.push("Semnătura olografă: semnați în câmpul de mai jos.");
     }
-    const unansweredQuestions = ballot.questions.filter((q, idx) => {
+    const unansweredQuestions = visibleQs.filter((q, idx) => {
       if (!q.required || auto[q.id] !== undefined) return false;
       const value = effective[q.id];
       return value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
     });
     unansweredQuestions.forEach((q) => {
-      missing.push(`Întrebarea ${labelFor(ballot.questions, q)}: alegeți un răspuns.`);
+      missing.push(`Întrebarea ${labelFor(visibleQs, q)}: alegeți un răspuns.`);
     });
     if (!gdpr) setGdprError("Trebuie să acceptați prelucrarea datelor personale (GDPR) pentru a vota.");
 
@@ -545,7 +565,7 @@ export default function VotePage() {
 
         <section className="questions-section">
           <h2 className="section-title">Votul dumneavoastră</h2>
-          {labelledItems(ballot.questions).map(({ q, label }) => {
+          {labelledItems(visibleQs).map(({ q, label }) => {
             if (label === null) {
               return (
                 <div key={q.id} className="chestiune-box chestiune-box-vote">

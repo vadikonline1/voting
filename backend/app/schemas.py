@@ -22,6 +22,10 @@ class Question(BaseModel):
     # question of the same chestiune automatically "Împotriva" (options[-1]).
     exclusive: bool = False
 
+    # Only on a chestiune (type "section"): show it (and its questions) only to owners who selected
+    # a property of this type, e.g. "parcare". Empty = shown to everyone.
+    property_type: str = ""
+
 
 class PropertyItem(BaseModel):
     tip_proprietate: str = "apartament"  # apartament | debara | parcare

@@ -70,25 +70,33 @@ def _is_positive(question: dict, value) -> bool:
     return bool(options) and isinstance(value, str) and value == str(options[0])
 
 
-def _exclusive_forced(questions: list, answers: dict) -> dict:
+def _section_applies(section: dict, property_types: frozenset) -> bool:
+    """A chestiune with a property type is shown only to owners who selected that type."""
+    wanted = (section.get("property_type") or "").strip().lower()
+    return not wanted or wanted in property_types
+
+
+def _exclusive_forced(questions: list, answers: dict, property_types: frozenset = frozenset()) -> dict:
     """Questions forced by an exclusive chestiune: if one question of the group is "Pentru",
     the others of the same chestiune get their last option ("Împotriva") automatically."""
-    groups: list[tuple[bool, list]] = []
+    groups: list[tuple[bool, bool, list]] = []
     current: list = []
     exclusive = False
+    applies = True
     for q in questions:
         if q.get("type") == "section":
             if current:
-                groups.append((exclusive, current))
+                groups.append((exclusive, applies, current))
             current, exclusive = [], bool(q.get("exclusive"))
+            applies = _section_applies(q, property_types)
             continue
         current.append(q)
     if current:
-        groups.append((exclusive, current))
+        groups.append((exclusive, applies, current))
 
     forced: dict = {}
-    for is_exclusive, group in groups:
-        if not is_exclusive or len(group) < 2:
+    for is_exclusive, applies_here, group in groups:
+        if not is_exclusive or not applies_here or len(group) < 2:
             continue
         winners = [q for q in group if _is_positive(q, answers.get(q.get("id")))]
         if not winners:
@@ -101,15 +109,28 @@ def _exclusive_forced(questions: list, answers: dict) -> dict:
     return forced
 
 
-def _resolve_answers(questions: list, answers: dict) -> tuple[dict, dict]:
+def _resolve_answers(questions: list, answers: dict, property_types: frozenset = frozenset()) -> tuple[dict, dict]:
     """Apply question dependencies (see README): a dependent question gets `auto_answer`
     when its parent's effective answer equals `depends_value`. Exclusive chestiuni force the rest."""
     effective: dict = {}
     auto: dict = {}
-    forced_exclusive = _exclusive_forced(questions, answers)
+    forced_exclusive = _exclusive_forced(questions, answers, property_types)
+    # questions of a chestiune the owner does not qualify for: not shown, not validated, no answer
+    hidden: set = set()
+    applies = True
+    for q in questions:
+        if q.get("type") == "section":
+            applies = _section_applies(q, property_types)
+            continue
+        if not applies:
+            hidden.add(q.get("id"))
     for q in questions:
         qid = q.get("id")
         if q.get("type") == "section":
+            continue
+        if qid in hidden:
+            effective[qid] = None
+            auto[qid] = None
             continue
         if qid in forced_exclusive:
             effective[qid] = forced_exclusive[qid]
@@ -341,7 +362,8 @@ def submit_apc_vote(nr_apc: str, payload: schemas.VoteSubmission, request: Reque
     _check_not_voted(db, election, properties)
 
     questions = json.loads(election.questions_json or "[]")
-    effective, auto = _resolve_answers(questions, payload.answers or {})
+    property_types = frozenset(p["tip_proprietate"] for p in properties)
+    effective, auto = _resolve_answers(questions, payload.answers or {}, property_types)
     _validate_answers(questions, effective, auto)
 
     if election.require_signature and not payload.signature_png_base64:

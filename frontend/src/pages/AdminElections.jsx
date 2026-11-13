@@ -14,6 +14,7 @@ function emptySection() {
     depends_on: null,
     depends_value: null,
     auto_answer: null,
+    property_type: "",
   };
 }
 
@@ -496,6 +497,23 @@ export default function AdminElections() {
                     celelalte întrebări din chestiune primesc automat „Împotriva”.
                   </span>
                 </label>
+                <label className="field">
+                  <span>Afișează această chestiune doar pentru imobilele de tip</span>
+                  <select
+                    value={q.property_type || ""}
+                    onChange={(e) => updateQuestion(qIdx, { property_type: e.target.value })}
+                  >
+                    <option value="">— toți proprietarii —</option>
+                    {(editing.property_types || []).map((t) => (
+                      <option key={t} value={t}>
+                        {t.charAt(0).toUpperCase() + t.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <p className="muted section-hint">
+                  Dacă alegeți un tip, chestiunea și întrebările ei apar votantului doar dacă a bifat acel tip de imobil.
+                </p>
                 <p className="muted section-hint">Întrebările de sub această chestiune sunt numerotate a, b, c…</p>
               </div>
             );
