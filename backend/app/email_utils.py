@@ -58,7 +58,7 @@ def send_email(
     attachment_name: str = "buletin-de-vot.pdf",
 ) -> tuple[bool, str]:
     """Send one email. Returns (ok, info). BCC addresses are only used in the SMTP envelope.
-    `from_name` overrides the sender display name (the ballot uses the APC number)."""
+    `from_name` is the sender display name: always the APC number, never the panel value."""
     if not smtp.enabled:
         return False, "SMTP dezactivat"
     if not smtp.host:
@@ -72,7 +72,7 @@ def send_email(
 
     msg = EmailMessage()
     msg["Subject"] = subject
-    name = from_name or smtp.from_name
+    name = (from_name or "").strip()
     msg["From"] = f"{name} <{smtp.from_email}>" if name else smtp.from_email
     msg["To"] = ", ".join(to_list)
     if cc_list:

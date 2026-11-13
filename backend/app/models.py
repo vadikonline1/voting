@@ -37,7 +37,7 @@ class SmtpSettings(Base):
     username = Column(String, default="")
     password = Column(String, default="")  # stored as given; see README for securing this further
     from_email = Column(String, default="")
-    from_name = Column(String, default="Comisia Electorală")
+    from_name = Column(String, default="")  # unused: the sender name is always the APC number
     use_tls = Column(Boolean, default=True)
     subject_template = Column(String, default="Confirmare vot - {election_title}")
     body_template = Column(

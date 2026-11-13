@@ -108,10 +108,9 @@ export default function AdminSmtp() {
             <span>Email expeditor</span>
             <input value={form.from_email} onChange={(e) => setForm({ ...form, from_email: e.target.value })} />
           </label>
-          <label className="field">
-            <span>Nume expeditor</span>
-            <input value={form.from_name} onChange={(e) => setForm({ ...form, from_name: e.target.value })} />
-          </label>
+          <p className="muted field-hint">
+            Numele expeditorului este întotdeauna numărul APC al votului (ex. <code>12</code>).
+          </p>
         </div>
 
         <label className="checkbox-field">
