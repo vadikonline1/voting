@@ -236,7 +236,7 @@ export default function VotePage() {
       return value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
     });
     unansweredQuestions.forEach((q) => {
-      missing.push(`Hotărârea ${String(q.number || "").trim() || ballot.questions.indexOf(q) + 1}: alegeți un răspuns.`);
+      missing.push(`Întrebarea ${String(q.number || "").trim() || String.fromCharCode(97 + ballot.questions.indexOf(q))}: alegeți un răspuns.`);
     });
     if (!gdpr) setGdprError("Trebuie să acceptați prelucrarea datelor personale (GDPR) pentru a vota.");
 
@@ -340,6 +340,13 @@ export default function VotePage() {
           <span>{ballot.date_line}</span>
           <span>{ballot.city_line}</span>
         </div>
+
+        {ballot.chestiune && (
+          <div className="chestiune-box">
+            <div className="chestiune-label">Chestiunea propusă spre vot:</div>
+            <div className="chestiune-text">{ballot.chestiune}</div>
+          </div>
+        )}
 
         <section className="voter-section">
           <h2 className="section-title">Datele proprietarului</h2>
@@ -475,7 +482,7 @@ export default function VotePage() {
         <section className="questions-section">
           <h2 className="section-title">Votul dumneavoastră</h2>
           {ballot.questions.map((q, idx) => {
-            const label = String(q.number || "").trim() || String(idx + 1);
+            const label = String(q.number || "").trim() || String.fromCharCode(97 + idx);
             const forced = auto[q.id];
             const isAuto = forced !== undefined;
             const parent = isAuto ? ballot.questions.find((p) => p.id === q.depends_on) : null;

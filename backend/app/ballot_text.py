@@ -13,10 +13,14 @@ GDPR_TEXT = (
 )
 
 
+def question_letter(index: int) -> str:
+    """1 -> a, 2 -> b, ... (numbers beyond z stay numeric)."""
+    return chr(96 + index) if 1 <= index <= 26 else str(index)
+
+
 def question_label(question: dict, index: int) -> str:
-    """Display label for a decision/question: '1. text', '3.a. text', etc.
-    The legacy fixed prefix 'Hotărârea nr.' is intentionally not used."""
-    number = str(question.get("number") or "").strip() or str(index)
+    """Display label for a question: 'a. text' by default, or the number the admin typed."""
+    number = str(question.get("number") or "").strip() or question_letter(index)
     return f"{number}. {question.get('text', '').strip()}"
 
 

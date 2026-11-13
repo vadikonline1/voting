@@ -271,6 +271,7 @@ def get_apc_ballot(nr_apc: str, db: Session = Depends(get_db)):
         gdpr_text=GDPR_TEXT,
         properties=[schemas.PropertyItem(tip_proprietate=t, nr_proprietate="") for t in _election_property_types(election)],
         allow_multiple_properties=bool(election.allow_multiple_properties),
+        chestiune=election.chestiune or "",
         questions=json.loads(election.questions_json or "[]"),
         require_signature=election.require_signature,
         is_open=status_ == "open",

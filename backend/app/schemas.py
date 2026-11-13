@@ -35,6 +35,7 @@ class ElectionIn(BaseModel):
     tip_proprietate: str = "apartament"
     properties: List[PropertyItem] = Field(default_factory=list)
     allow_multiple_properties: bool = True
+    chestiune: str = ""  # Chestiunea propusă spre vot
     questions: List[Question] = Field(default_factory=list)
     is_active: bool = True
     require_signature: bool = True
@@ -86,6 +87,7 @@ class ApcBallotOut(BaseModel):
     gdpr_text: str
     properties: List[PropertyItem]
     allow_multiple_properties: bool
+    chestiune: str = ""
     questions: List[Question]
     require_signature: bool
     is_open: bool

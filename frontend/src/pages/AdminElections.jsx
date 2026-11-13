@@ -2,19 +2,14 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 
-function nextNumber(questions) {
-  let max = 0;
-  for (const q of questions || []) {
-    const match = String(q.number || "").match(/^(\d+)/);
-    if (match) max = Math.max(max, Number(match[1]));
-  }
-  return String(max + 1);
+function nextLetter(questions) {
+  return String.fromCharCode(97 + (questions || []).length);
 }
 
 function emptyQuestion(questions = []) {
   return {
     id: `q${Date.now()}${Math.floor(Math.random() * 1000)}`,
-    number: nextNumber(questions),
+    number: nextLetter(questions),
     text: "",
     type: "single",
     options: ["Pentru", "Împotriva"],
@@ -28,6 +23,7 @@ function emptyQuestion(questions = []) {
 function emptyElection() {
   return {
     title: "Vot nou",
+    chestiune: "",
     description: "",
     nr_apc: "",
     str_apc: "",
@@ -88,7 +84,7 @@ export default function AdminElections() {
       property_types: [...new Set((e.properties || []).map((p) => p.tip_proprietate))],
       questions: e.questions.map((q, i) => ({
         ...q,
-        number: q.number || String(i + 1),
+        number: q.number || String.fromCharCode(97 + i),
         options: q.options && q.options.length ? q.options : ["Pentru", "Împotriva"],
         depends_on: q.depends_on || null,
         depends_value: q.depends_value || null,
@@ -425,9 +421,19 @@ export default function AdminElections() {
           Necesită semnătură olografă la final
         </label>
 
+        <label className="field">
+          <span>Chestiunea propusă spre vot (apare pe buletin, deasupra întrebărilor)</span>
+          <textarea
+            rows={3}
+            value={editing.chestiune || ""}
+            onChange={(e) => setEditing({ ...editing, chestiune: e.target.value })}
+            placeholder="Alegerea președintelui și secretarului Adunării Generale Mixte"
+          />
+        </label>
+
         <h3>Întrebări supuse votului</h3>
         <p className="muted">
-          Numerotarea este liberă: 1, 2, 3, 3.a, 3.b etc. Opțiunile implicite sunt „Pentru” și „Împotriva”.
+          Întrebările sunt numerotate cu litere: a, b, c… Dependențele se setează la fiecare întrebare. Opțiunile implicite sunt „Pentru” și „Împotriva”.
         </p>
         {editing.questions.map((q, qIdx) => {
           const parentOptions = (() => {

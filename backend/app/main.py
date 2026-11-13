@@ -47,6 +47,7 @@ def _migrate_sqlite():
             "results_final_email_sent_at": "DATETIME",
             "expiry_reminders_json": "TEXT DEFAULT '{}'",
             "properties_json": "TEXT DEFAULT '[]'",
+            "chestiune": "TEXT DEFAULT ''",
             "allow_multiple_properties": "BOOLEAN DEFAULT 1",
         },
         "voter_tokens": {
@@ -131,14 +132,15 @@ def _bootstrap():
         if not db.query(models.Election).first():
             db.add(models.Election(
                 title="Alegerea președintelui și secretarului Adunării Generale Mixte",
+                chestiune="Alegerea președintelui și secretarului Adunării Generale Mixte",
                 description="Exemplu de formulare. Completați nr. APC, adresa, localitatea și datele din panoul de administrare.",
                 nr_apc="12",
                 str_apc="str. Exemplu 1",
                 oras="Chișinău",
                 tip_proprietate="apartament",
                 questions_json=json.dumps([
-                    {"id": "q1", "number": "1", "text": "Președintele adunării, dna Anastasia Malec", "type": "single", "options": ["Pentru", "Împotriva"], "required": True},
-                    {"id": "q2", "number": "2", "text": "Președintele adunării, dna Anaia Mac", "type": "single", "options": ["Pentru", "Împotriva"], "required": True},
+                    {"id": "q1", "number": "a", "text": "Președintele adunării, dna Anastasia Malec", "type": "single", "options": ["Pentru", "Împotriva"], "required": True},
+                    {"id": "q2", "number": "b", "text": "Secretarul adunării, dna Ecaterina Stoicev", "type": "single", "options": ["Pentru", "Împotriva"], "required": True},
                 ], ensure_ascii=False),
                 is_active=False,  # exemplul nu este activ, ca să nu blocheze linkul APC real
                 require_signature=True,

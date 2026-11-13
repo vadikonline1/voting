@@ -845,3 +845,14 @@ h2 { font-size: 1.25rem; }
 }
 .question .option-disabled { opacity: 0.55; cursor: not-allowed; }
 .question .auto-note { width: 100%; margin: 4px 0 0; }
+
+/* --- Vote page: the proposed matter (chestiunea propusă spre vot) ------- */
+.chestiune-box {
+  border-left: 4px solid var(--primary);
+  background: #f5f8ff;
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin: 0 0 22px;
+}
+.chestiune-label { font-size: 0.85rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.chestiune-text { font-size: 1.05rem; font-weight: 600; margin-top: 4px; line-height: 1.45; }

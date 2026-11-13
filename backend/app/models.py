@@ -67,6 +67,9 @@ class Election(Base):
     end_date_vot = Column(DateTime, nullable=True)    # termenul-limită de remitere a buletinului
     tip_proprietate = Column(String, default="apartament")
 
+    # Chestiunea propusă spre vot: the text shown on the ballot above the questions
+    chestiune = Column(Text, default="")
+
     # Properties (imobile) of this APC that owners can tick on the ballot:
     # [{"tip_proprietate": "apartament", "nr_proprietate": "12"}, ...]
     properties_json = Column(Text, default="[]")

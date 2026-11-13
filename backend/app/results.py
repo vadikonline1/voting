@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timezone
 
 from . import models
+from .ballot_text import question_letter
 from .config import settings
 
 
@@ -63,7 +64,7 @@ def compute_results(db, election: models.Election) -> dict:
             options.append({"option": option, "count": count, "percent": percent})
         question_rows.append({
             "id": question["id"],
-            "number": str(question.get("number") or "").strip() or str(index),
+            "number": str(question.get("number") or "").strip() or question_letter(index),
             "text": question.get("text", ""),
             "options": options,
         })

@@ -145,6 +145,7 @@ def _election_to_out(e: models.Election) -> schemas.ElectionOut:
         tip_proprietate=e.tip_proprietate or "apartament",
         properties=[schemas.PropertyItem(tip_proprietate=p["tip_proprietate"]) for p in _election_properties(e)],
         allow_multiple_properties=bool(e.allow_multiple_properties),
+        chestiune=e.chestiune or "",
         vote_url=_vote_url(e.nr_apc),
         questions=json.loads(e.questions_json or "[]"),
         is_active=e.is_active,
@@ -170,6 +171,7 @@ def _apply_election_fields(election: models.Election, payload: schemas.ElectionI
     election.end_date_vot = payload.end_date_vot
     election.tip_proprietate = payload.tip_proprietate
     election.allow_multiple_properties = bool(payload.allow_multiple_properties)
+    election.chestiune = payload.chestiune or ""
     election.properties_json = json.dumps(
         _property_types_from_payload(payload.properties),
         ensure_ascii=False,
