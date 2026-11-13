@@ -1,3 +1,4 @@
+import json
 import os
 import threading
 import time
@@ -129,16 +130,16 @@ def _bootstrap():
             db.add(models.SmtpSettings(id=1))
         if not db.query(models.Election).first():
             db.add(models.Election(
-                title="Exemplu: Adunare Generală APC",
-                description="Completează nr. APC, adresa, localitatea și datele din panoul de administrare.",
+                title="Alegerea președintelui și secretarului Adunării Generale Mixte",
+                description="Exemplu de formulare. Completați nr. APC, adresa, localitatea și datele din panoul de administrare.",
                 nr_apc="12",
                 str_apc="str. Exemplu 1",
                 oras="Chișinău",
                 tip_proprietate="apartament",
-                questions_json=(
-                    '[{"id":"q1","number":"1","text":"Aprobarea dării de seamă a administratorului pe anul curent.",'
-                    '"type":"single","options":["Pentru","Împotriva"],"required":true}]'
-                ),
+                questions_json=json.dumps([
+                    {"id": "q1", "number": "1", "text": "Președintele adunării, dna Anastasia Malec", "type": "single", "options": ["Pentru", "Împotriva"], "required": True},
+                    {"id": "q2", "number": "2", "text": "Președintele adunării, dna Anaia Mac", "type": "single", "options": ["Pentru", "Împotriva"], "required": True},
+                ], ensure_ascii=False),
                 is_active=False,  # exemplul nu este activ, ca să nu blocheze linkul APC real
                 require_signature=True,
             ))
