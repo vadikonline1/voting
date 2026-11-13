@@ -15,7 +15,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-from .ballot_text import build_ballot_texts, question_label
+from .ballot_text import build_ballot_texts, labelled_questions, question_label
 
 # Register a Unicode TTF font so Romanian diacritics (ă, â, î, ș, ț) render correctly -
 # the base14 PDF fonts (Helvetica) do not support them.
@@ -75,9 +75,15 @@ def generate_receipt_pdf(
     elements.append(Paragraph(texts["paragraph2"], body_style))
     elements.append(Spacer(1, 4 * mm))
 
-    for i, q in enumerate(questions, start=1):
+    for q, label in labelled_questions(questions):
+        if label is None:
+            chestiune = q.get("text", "").strip().replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            elements.append(Paragraph(f"<b>Chestiunea propusă spre vot:</b> {chestiune}", h2_style))
+            elements.append(Spacer(1, 2 * mm))
+            continue
         qid = q["id"]
-        elements.append(Paragraph(question_label(q, i), h2_style))
+        text = q.get("text", "").strip().replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        elements.append(Paragraph(f"{label}. {text}", h2_style))
         elements.append(Paragraph(f"Vot: <b>{_answer_text(q, answers.get(qid))}</b>", normal_style))
         elements.append(Spacer(1, 3 * mm))
 

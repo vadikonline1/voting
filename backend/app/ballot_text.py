@@ -18,6 +18,22 @@ def question_letter(index: int) -> str:
     return chr(96 + index) if 1 <= index <= 26 else str(index)
 
 
+def labelled_questions(questions: list) -> list:
+    """[(question, label)] in order. A "section" item is a chestiune (label None); the questions
+    after it are lettered a, b, c… again, so each chestiune starts from a."""
+    out = []
+    counter = 0
+    for q in questions:
+        if q.get("type") == "section":
+            counter = 0
+            out.append((q, None))
+            continue
+        counter += 1
+        label = str(q.get("number") or "").strip() or question_letter(counter)
+        out.append((q, label))
+    return out
+
+
 def question_label(question: dict, index: int) -> str:
     """Display label for a question: 'a. text' by default, or the number the admin typed."""
     number = str(question.get("number") or "").strip() or question_letter(index)

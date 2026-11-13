@@ -4,7 +4,7 @@ import json
 from datetime import datetime, timezone
 
 from . import models
-from .ballot_text import question_letter
+from .ballot_text import labelled_questions
 from .config import settings
 
 
@@ -56,7 +56,9 @@ def compute_results(db, election: models.Election) -> dict:
                 tally[question["id"]][answer] = tally[question["id"]].get(answer, 0) + 1
 
     question_rows = []
-    for index, question in enumerate(questions, start=1):
+    for question, label in labelled_questions(questions):
+        if label is None:
+            continue
         options = []
         for option in question.get("options", []):
             count = tally[question["id"]].get(option, 0)
@@ -64,7 +66,7 @@ def compute_results(db, election: models.Election) -> dict:
             options.append({"option": option, "count": count, "percent": percent})
         question_rows.append({
             "id": question["id"],
-            "number": str(question.get("number") or "").strip() or question_letter(index),
+            "number": label,
             "text": question.get("text", ""),
             "options": options,
         })

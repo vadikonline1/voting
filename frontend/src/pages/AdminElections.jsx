@@ -2,8 +2,37 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 
+/** A chestiune (titlu-notiță). Its questions below it are lettered a, b, c… from the start. */
+function emptySection() {
+  return {
+    id: `c${Date.now()}${Math.floor(Math.random() * 1000)}`,
+    type: "section",
+    number: "",
+    text: "",
+    options: [],
+    required: false,
+    depends_on: null,
+    depends_value: null,
+    auto_answer: null,
+  };
+}
+
+/** Letter for the next question: counts only the questions after the last chestiune. */
 function nextLetter(questions) {
-  return String.fromCharCode(97 + (questions || []).length);
+  let n = 0;
+  for (const q of questions || []) {
+    n = q.type === "section" ? 0 : n + 1;
+  }
+  return String.fromCharCode(96 + n + 1);
+}
+
+/** Letter of the question at `index`, counted after the last chestiune before it. */
+function letterFor(questions, index) {
+  let n = 0;
+  for (let k = 0; k < index; k++) {
+    n = questions[k].type === "section" ? 0 : n + 1;
+  }
+  return String.fromCharCode(96 + n + 1);
 }
 
 function emptyQuestion(questions = []) {
@@ -84,7 +113,7 @@ export default function AdminElections() {
       property_types: [...new Set((e.properties || []).map((p) => p.tip_proprietate))],
       questions: e.questions.map((q, i) => ({
         ...q,
-        number: q.number || String.fromCharCode(97 + i),
+        number: q.number || letterFor(e.questions, i),
         options: q.options && q.options.length ? q.options : ["Pentru", "Împotriva"],
         depends_on: q.depends_on || null,
         depends_value: q.depends_value || null,
@@ -151,6 +180,10 @@ export default function AdminElections() {
       );
       return { ...prev, questions };
     });
+  }
+
+  function addSection() {
+    setEditing((prev) => ({ ...prev, questions: [...prev.questions, emptySection()] }));
   }
 
   function addQuestion() {
@@ -421,15 +454,6 @@ export default function AdminElections() {
           Necesită semnătură olografă la final
         </label>
 
-        <label className="field">
-          <span>Chestiunea propusă spre vot (apare pe buletin, deasupra întrebărilor)</span>
-          <textarea
-            rows={3}
-            value={editing.chestiune || ""}
-            onChange={(e) => setEditing({ ...editing, chestiune: e.target.value })}
-            placeholder="Alegerea președintelui și secretarului Adunării Generale Mixte"
-          />
-        </label>
 
         <h3>Întrebări supuse votului</h3>
         <p className="muted">
@@ -440,6 +464,25 @@ export default function AdminElections() {
             const parent = editing.questions.find((p) => p.id === q.depends_on);
             return (parent && parent.options) || [];
           })();
+          if (q.type === "section") {
+            return (
+              <div key={q.id} className="section-editor">
+                <div className="section-editor-head">
+                  <span>Chestiunea propusă spre vot</span>
+                  <button type="button" className="btn-link btn-danger" onClick={() => removeQuestion(qIdx)}>
+                    Șterge chestiunea
+                  </button>
+                </div>
+                <textarea
+                  rows={3}
+                  value={q.text}
+                  onChange={(e) => updateQuestion(qIdx, { text: e.target.value })}
+                  placeholder="Ex.: Alegerea președintelui și secretarului Adunării Generale Mixte"
+                />
+                <p className="muted section-hint">Întrebările de sub această chestiune sunt numerotate a, b, c…</p>
+              </div>
+            );
+          }
           return (
             <div key={q.id} className="question-editor">
               <div className="field-row">
@@ -515,7 +558,7 @@ export default function AdminElections() {
                       <span>Depinde de întrebarea</span>
                       <select value={q.depends_on || ""} onChange={(e) => setDependency(qIdx, e.target.value)}>
                         <option value="">— nu depinde —</option>
-                        {editing.questions.slice(0, qIdx).map((p) => (
+                        {editing.questions.slice(0, qIdx).filter((p) => p.type !== "section").map((p) => (
                           <option key={p.id} value={p.id}>
                             {p.number || "?"}. {p.text ? p.text.slice(0, 60) : "(fără text)"}
                           </option>
@@ -570,6 +613,9 @@ export default function AdminElections() {
             </div>
           );
         })}
+        <button type="button" className="btn" onClick={addSection}>
+          + Adaugă chestiune
+        </button>
         <button type="button" className="btn" onClick={addQuestion}>
           + Adaugă întrebare
         </button>

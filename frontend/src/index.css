@@ -856,3 +856,15 @@ h2 { font-size: 1.25rem; }
 }
 .chestiune-label { font-size: 0.85rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .chestiune-text { font-size: 1.05rem; font-weight: 600; margin-top: 4px; line-height: 1.45; }
+
+/* --- Admin: chestiune (titlu-notiță) with its questions ---------------- */
+.section-editor {
+  border: 1px dashed var(--primary);
+  background: #f5f8ff;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 14px 0;
+}
+.section-editor-head { display: flex; justify-content: space-between; align-items: center; font-weight: 700; margin-bottom: 8px; }
+.section-editor textarea { width: 100%; font: inherit; font-weight: 600; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+.chestiune-box-vote { margin-top: 6px; }

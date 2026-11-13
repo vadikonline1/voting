@@ -103,6 +103,28 @@ function resolveAnswers(questions, answers) {
 
 const propKey = (p) => `${p.tip_proprietate}|${p.nr_proprietate}`;
 
+/** Items of the ballot in order: a chestiune (section, label null) or a question with its label.
+ * Letters restart after each chestiune. */
+function labelledItems(questions) {
+  const out = [];
+  let counter = 0;
+  for (const q of questions || []) {
+    if (q.type === "section") {
+      counter = 0;
+      out.push({ q, label: null });
+      continue;
+    }
+    counter += 1;
+    out.push({ q, label: String(q.number || "").trim() || String.fromCharCode(96 + counter) });
+  }
+  return out;
+}
+
+function labelFor(questions, target) {
+  const hit = labelledItems(questions).find((it) => it.q.id === target.id);
+  return hit && hit.label ? hit.label : "";
+}
+
 export default function VotePage() {
   const { nrApc } = useParams();
   const [ballot, setBallot] = useState(null);
@@ -236,7 +258,7 @@ export default function VotePage() {
       return value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0);
     });
     unansweredQuestions.forEach((q) => {
-      missing.push(`Întrebarea ${String(q.number || "").trim() || String.fromCharCode(97 + ballot.questions.indexOf(q))}: alegeți un răspuns.`);
+      missing.push(`Întrebarea ${labelFor(ballot.questions, q)}: alegeți un răspuns.`);
     });
     if (!gdpr) setGdprError("Trebuie să acceptați prelucrarea datelor personale (GDPR) pentru a vota.");
 
@@ -341,12 +363,6 @@ export default function VotePage() {
           <span>{ballot.city_line}</span>
         </div>
 
-        {ballot.chestiune && (
-          <div className="chestiune-box">
-            <div className="chestiune-label">Chestiunea propusă spre vot:</div>
-            <div className="chestiune-text">{ballot.chestiune}</div>
-          </div>
-        )}
 
         <section className="voter-section">
           <h2 className="section-title">Datele proprietarului</h2>
@@ -481,13 +497,20 @@ export default function VotePage() {
 
         <section className="questions-section">
           <h2 className="section-title">Votul dumneavoastră</h2>
-          {ballot.questions.map((q, idx) => {
-            const label = String(q.number || "").trim() || String.fromCharCode(97 + idx);
+          {labelledItems(ballot.questions).map(({ q, label }) => {
+            if (label === null) {
+              return (
+                <div key={q.id} className="chestiune-box chestiune-box-vote">
+                  <div className="chestiune-label">Chestiunea propusă spre vot</div>
+                  <div className="chestiune-text">{q.text}</div>
+                </div>
+              );
+            }
             const forced = auto[q.id];
             const isAuto = forced !== undefined;
             const parent = isAuto ? ballot.questions.find((p) => p.id === q.depends_on) : null;
             const parentLabel = parent
-              ? `${String(parent.number || "").trim() || ballot.questions.indexOf(parent) + 1}. ${parent.text}`
+              ? `${labelFor(ballot.questions, parent)}. ${parent.text}`
               : "";
             return (
               <fieldset key={q.id} className={`question ${isAuto ? "question-auto" : ""}`}>

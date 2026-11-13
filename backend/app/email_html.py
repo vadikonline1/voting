@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 from html import escape
 
-from .ballot_text import build_ballot_texts, question_label
+from .ballot_text import build_ballot_texts, labelled_questions
 from .email_utils import render_template
 
 BALLOT_TOKEN = "{buletin}"
@@ -45,8 +45,11 @@ def _ballot_text(election, voter, answers: dict, submitted_at: datetime) -> str:
         texts["paragraph2"],
         "",
     ]
-    for i, q in enumerate(_questions(election), start=1):
-        lines.append(question_label(q, i))
+    for q, label in labelled_questions(_questions(election)):
+        if label is None:
+            lines += [q.get("text", "").strip(), ""]
+            continue
+        lines.append(f"{label}. {q.get('text', '').strip()}")
         lines.append(f"Vot: {_answer_text(q, answers.get(q['id']))}")
         lines.append("")
     lines += [
@@ -59,11 +62,18 @@ def _ballot_text(election, voter, answers: dict, submitted_at: datetime) -> str:
 def _ballot_html(election, voter, answers: dict, submitted_at: datetime) -> str:
     texts = build_ballot_texts(election, voter)
     rows = []
-    for i, q in enumerate(_questions(election), start=1):
+    for q, label in labelled_questions(_questions(election)):
+        if label is None:
+            rows.append(
+                '<div style="margin:18px 0 10px;padding:12px 14px;border-left:4px solid #2452b5;'
+                'background:#f5f8ff;border-radius:6px;font-weight:600;line-height:1.45;">'
+                f'{escape(q.get("text", "").strip())}</div>'
+            )
+            continue
         rows.append(
             '<div style="margin:0 0 14px;padding:12px 14px;border:1px solid #e2e5ea;'
             'border-radius:8px;background:#fafbfc;">'
-            f'<div style="font-weight:600;margin:0 0 6px;line-height:1.45;">{escape(question_label(q, i))}</div>'
+            f'<div style="font-weight:600;margin:0 0 6px;line-height:1.45;">{escape(f"{label}. {q.get('text', '').strip()}")}</div>'
             '<div style="margin:0;color:#2452b5;"><strong>Vot:</strong> '
             f'{escape(_answer_text(q, answers.get(q["id"])))}</div>'
             "</div>"

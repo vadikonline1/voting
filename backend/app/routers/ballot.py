@@ -90,6 +90,8 @@ def _resolve_answers(questions: list, answers: dict) -> tuple[dict, dict]:
 
 def _validate_answers(questions: list, effective: dict, auto: dict) -> None:
     for q in questions:
+        if q.get("type") == "section":
+            continue  # chestiune title, nothing to answer
         qid = q.get("id")
         if qid in auto:
             continue

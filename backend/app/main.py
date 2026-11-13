@@ -139,6 +139,7 @@ def _bootstrap():
                 oras="Chișinău",
                 tip_proprietate="apartament",
                 questions_json=json.dumps([
+                    {"id": "c1", "type": "section", "number": "", "text": "Alegerea președintelui și secretarului Adunării Generale Mixte", "options": [], "required": False},
                     {"id": "q1", "number": "a", "text": "Președintele adunării, dna Anastasia Malec", "type": "single", "options": ["Pentru", "Împotriva"], "required": True},
                     {"id": "q2", "number": "b", "text": "Secretarul adunării, dna Ecaterina Stoicev", "type": "single", "options": ["Pentru", "Împotriva"], "required": True},
                 ], ensure_ascii=False),
