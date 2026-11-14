@@ -100,6 +100,7 @@ def send_email(
     attach_pdf: bool = False,
     from_name: str | None = None,
     attachment_name: str = "buletin-de-vot.pdf",
+    attachments: list[tuple[str, str]] | None = None,
     db=None,
     election_id: int | None = None,
     kind: str = "",
@@ -112,7 +113,11 @@ def send_email(
     to_list = parse_addresses(to)
     cc_list = parse_addresses(cc)
     bcc_list = parse_addresses(bcc)
-    attachment = attachment_name if attach_pdf else ""
+    # one or more (path, file name) pairs; a single pdf_path is the classic case
+    files = list(attachments or [])
+    if attach_pdf and not files and pdf_path:
+        files = [(pdf_path, attachment_name)]
+    attachment = ", ".join(name for _, name in files) if (attach_pdf and files) else ""
     date = formatdate(localtime=False)
     domain = smtp.from_email.split("@")[-1] if smtp.from_email and "@" in smtp.from_email else "localhost"
     message_id = make_msgid(domain=domain)
@@ -146,16 +151,14 @@ def send_email(
         msg.add_alternative(html_body, subtype="html")
 
     if attach_pdf:
-        if not pdf_path:
+        if not files:
             return done(False, "Lipsește PDF-ul care trebuie atașat")
-        try:
-            with open(pdf_path, "rb") as fh:
-                msg.add_attachment(
-                    fh.read(), maintype="application", subtype="pdf",
-                    filename=attachment_name,
-                )
-        except OSError as exc:
-            return done(False, f"Nu am putut citi PDF-ul: {exc}")
+        for path, name in files:
+            try:
+                with open(path, "rb") as fh:
+                    msg.add_attachment(fh.read(), maintype="application", subtype="pdf", filename=name)
+            except OSError as exc:
+                return done(False, f"Nu am putut citi PDF-ul: {exc}")
 
     recipients = list(dict.fromkeys([*to_list, *cc_list, *bcc_list]))
 
@@ -186,6 +189,7 @@ def send_confirmation_email(
     election_title: str,
     submitted_at_str: str,
     pdf_path: str | None = None,
+    attachments: list[tuple[str, str]] | None = None,
     text_body: str | None = None,
     html_body: str | None = None,
     attach_pdf: bool = True,
@@ -213,6 +217,7 @@ def send_confirmation_email(
         cc=cc,
         bcc=bcc,
         pdf_path=pdf_path,
+        attachments=attachments,
         attach_pdf=attach_pdf,
         from_name=nr_apc or None,
         attachment_name=attachment_name,

@@ -136,9 +136,11 @@ def build_email_text(
     receipt_url: str | None = None,
     attach_pdf: bool = True,
     template: dict | None = None,
+    voters: list | None = None,
 ) -> str:
     before, after = _split_template(body_template, values)
-    ballot = _ballot_text(election, voter, answers, submitted_at, template)
+    # every ballot of the vote (one per property) is written in the email
+    ballot = "\n\n".join(_ballot_text(election, v, answers, submitted_at, template) for v in (voters or [voter]))
     note, _ = _delivery_note(attach_pdf, receipt_url)
     parts = [p for p in [before, ballot, after, note] if p]
     return "\n\n".join(parts)
@@ -155,9 +157,10 @@ def build_email_html(
     receipt_url: str | None = None,
     attach_pdf: bool = True,
     template: dict | None = None,
+    voters: list | None = None,
 ) -> str:
     before, after = _split_template(body_template, values)
-    ballot = _ballot_html(election, voter, answers, submitted_at, template)
+    ballot = "".join(_ballot_html(election, v, answers, submitted_at, template) for v in (voters or [voter]))
     _, note_html = _delivery_note(attach_pdf, receipt_url)
     note = f'<p style="margin:0;font-size:13px;color:#6b7280;">{note_html}</p>' if note_html else ""
     title = escape(values.get("election_title", ""))

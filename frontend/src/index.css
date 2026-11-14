@@ -1476,8 +1476,10 @@ h2 { font-size: 1.25rem; }
   flex-direction: column;
 }
 
-/* the block comes first, the property number after it */
-.property-pair > .property-col:last-child { order: -1; }
+/* order on the row: Adresa condominiului | Blocul | Numărul imobilului */
+.property-pair > .property-col-address { order: 1; }
+.property-pair > .property-col-block { order: 2; }
+.property-pair > .property-col-number { order: 3; }
 
 /* ===================================================================
    Admin on phones: one clean layout. This block is the last one in the

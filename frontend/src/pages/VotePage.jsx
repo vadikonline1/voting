@@ -30,7 +30,7 @@ const FIELD_LABELS = {
 
 /** One property of a type: its number and the block it is in. */
 function emptyProperty() {
-  return { nr: "", bloc: "" };
+  return { nr: "", bloc: "", adresa: "" };
 }
 
 const EMPTY_VOTER = {
@@ -203,7 +203,6 @@ export default function VotePage() {
   const [answers, setAnswers] = useState({});
   const [voter, setVoter] = useState(EMPTY_VOTER);
   // block / address of the APC the owner belongs to (asked only when the APC has several)
-  const [adresa, setAdresa] = useState("");
   // property selection: types ticked by the owner, and the numbers typed for each type
   const [selectedTypes, setSelectedTypes] = useState([]);
   // each property of a type: its number and its block, e.g. { apartament: [{ nr: "12", bloc: "E" }] }
@@ -255,10 +254,11 @@ export default function VotePage() {
       for (const item of numbers[tip] || []) {
         const nr = (item.nr || "").trim();
         const bloc = (item.bloc || "").trim();
-        const key = `${nr}|${bloc}`;
+        const adresa = item.adresa || "";
+        const key = `${nr}|${bloc}|${adresa}`;
         if (nr && !seen.has(key)) {
           seen.add(key);
-          out.push({ tip_proprietate: tip, nr_proprietate: nr, bloc });
+          out.push({ tip_proprietate: tip, nr_proprietate: nr, bloc, adresa });
         }
       }
     }
@@ -330,8 +330,11 @@ export default function VotePage() {
     const missing = Object.entries(FIELD_LABELS)
       .filter(([key]) => errors[key])
       .map(([key]) => `${FIELD_LABELS[key]}: ${errors[key]}`);
-    if (addresses.length > 1 && !adresa) {
-      missing.push("Adresa condominiului: selectați adresa din listă.");
+    // with several addresses, every property says which building it is in
+    if (addresses.length > 1) {
+      selectedProps
+        .filter((p) => !p.adresa)
+        .forEach((p) => missing.push(`Adresa condominiului pentru imobilul ${tipLabel(p.tip_proprietate).toLowerCase()} ${p.nr_proprietate}: alegeți adresa.`));
     }
     // the block is mandatory for every property
     selectedProps
@@ -368,11 +371,11 @@ export default function VotePage() {
       const payload = {
         answers: effective,
         voter: cleanVoter(voter),
-        adresa: addresses.length > 1 ? adresa : addresses[0] || "",
         properties: selectedProps.map((p) => ({
           tip_proprietate: p.tip_proprietate,
           nr_proprietate: p.nr_proprietate,
           bloc: p.bloc,
+          adresa: addresses.length > 1 ? p.adresa : addresses[0] || "",
         })),
         gdpr_consent: true,
         signature_png_base64: ballot.require_signature ? sigRef.current.toPngBase64() : null,
@@ -522,23 +525,6 @@ export default function VotePage() {
 
         <section className="voter-section property-section">
           <h2 className="section-title">Imobilele pe care le dețineți *</h2>
-          {addresses.length > 1 && (
-            <fieldset className={`address-choice ${!adresa && summary.length ? "address-choice-missing" : ""}`}>
-              <legend>Adresa condominiului în care se află imobilele *</legend>
-              {addresses.map((a) => (
-                <label key={a} className={`address-option ${adresa === a ? "address-option-on" : ""}`}>
-                  <input
-                    type="radio"
-                    name="adresa"
-                    value={a}
-                    checked={adresa === a}
-                    onChange={() => setAdresa(a)}
-                  />
-                  <span>{a}</span>
-                </label>
-              ))}
-            </fieldset>
-          )}
           <p className="property-help">
             Apăsați pe tipul imobilului pe care îl dețineți, apoi scrieți numărul lui.
             {allowMultiple
@@ -568,7 +554,27 @@ export default function VotePage() {
                       {rows.map((item, idx) => (
                         <div key={idx} className="property-field">
                           <div className="property-pair">
-                          <div className="property-col">
+                          {addresses.length > 1 && (
+                            <div className="property-col property-col-address">
+                              <label className="property-field-label" htmlFor={`prop-${tip}-${idx}-adresa`}>
+                                Adresa condominiului *
+                              </label>
+                              <select
+                                id={`prop-${tip}-${idx}-adresa`}
+                                className="property-input"
+                                value={item.adresa || ""}
+                                onChange={(e) => updateProperty(tip, idx, { adresa: e.target.value })}
+                              >
+                                <option value="">— alegeți adresa —</option>
+                                {addresses.map((a) => (
+                                  <option key={a} value={a}>
+                                    {a}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                          <div className="property-col property-col-number">
                           <label className="property-field-label" htmlFor={`prop-${tip}-${idx}`}>
                             Numărul imobilului *{rows.length > 1 ? ` ${idx + 1}` : ""}
                           </label>
@@ -590,7 +596,7 @@ export default function VotePage() {
                             )}
                           </div>
                           </div>
-                          <div className="property-col">
+                          <div className="property-col property-col-block">
                           <label className="property-field-label" htmlFor={`prop-${tip}-${idx}-bloc`}>
                             Blocul *
                           </label>

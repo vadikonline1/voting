@@ -227,12 +227,16 @@ def _clean_properties(election: models.Election, items: list) -> list[dict]:
         if not (1 <= len(nr) <= 30) or not _PROP_RE.match(nr):
             raise HTTPException(status_code=400, detail=f"Numărul imobilului ({tip}) nu este valid.")
         # each property has its own block (the blocks can differ between the owner's properties)
-        # the block is mandatory for every property (picked from the list, or typed when there is no list)
+        # the address (when the APC has several) and the block are mandatory for every property
+        adresa = _clean_adresa(election, item.adresa)
         bloc = _clean_bloc(election, item.bloc)
         if not bloc:
             raise HTTPException(status_code=400, detail=f"Completați blocul pentru imobilul {tip} {nr}.")
-        if not any(c["tip_proprietate"] == tip and c["nr_proprietate"] == nr and c["bloc"] == bloc for c in chosen):
-            chosen.append({"tip_proprietate": tip, "nr_proprietate": nr, "bloc": bloc})
+        if not any(
+            c["tip_proprietate"] == tip and c["nr_proprietate"] == nr and c["bloc"] == bloc and c["adresa"] == adresa
+            for c in chosen
+        ):
+            chosen.append({"tip_proprietate": tip, "nr_proprietate": nr, "bloc": bloc, "adresa": adresa})
     if not chosen:
         raise HTTPException(status_code=400, detail="Selectați cel puțin un imobil pe care îl dețineți.")
     if len(chosen) > 1 and not election.allow_multiple_properties:
@@ -268,11 +272,12 @@ def _clean_bloc(election: models.Election, bloc: str) -> str:
     return value
 
 
-def _check_not_voted(db: Session, election: models.Election, adresa: str, properties: list[dict]) -> None:
+def _check_not_voted(db: Session, election: models.Election, properties: list[dict]) -> None:
     """Refuse properties already voted in this election (same address, block, type and number) and show
     the masked email used for it."""
     for p in properties:
         bloc = p["bloc"]
+        adresa = p["adresa"]
         existing = (
             db.query(models.VoterProperty)
             .filter(
@@ -315,13 +320,15 @@ def ballot_filename(election, token, submitted_at) -> str:
     return f"{date}-buletin_de_vot-{_safe_part(election.nr_apc)}-{props}-{email}.pdf"
 
 
-def _send_confirmation(db, election, token, effective, submitted_at, receipt_path):
-    """Send the ballot to the owner. Without an owner email it goes to the APC address.
+def _send_confirmation(db, election, tokens, effective, submitted_at, attachments):
+    """Send all the ballots of one vote to the owner in one email: every ballot is in the text and each
+    ballot PDF is attached. Without an owner email it goes to the APC address.
     The sender name is always the APC number. Returns (sent, recipient_masked_or_label)."""
     smtp, _source = get_smtp(db)
     if not smtp or not smtp.enabled:
         return False, ""
 
+    token = tokens[0]  # the owner's data is the same on every ballot
     if token.email:
         to_email = token.email
         recipient = mask_email(token.email)
@@ -351,20 +358,19 @@ def _send_confirmation(db, election, token, effective, submitted_at, receipt_pat
         voter_name=token.nume_prenume,
         election_title=election.title,
         submitted_at_str=submitted_str,
-        pdf_path=receipt_path,
+        attachments=attachments,
         text_body=build_email_text(
-            election=election, voter=token, answers=effective, submitted_at=submitted_at,
+            election=election, voter=token, voters=tokens, answers=effective, submitted_at=submitted_at,
             body_template=smtp.body_template, values=values,
             receipt_url=receipt_url, attach_pdf=attach_pdf, template=template,
         ),
         html_body=build_email_html(
-            election=election, voter=token, answers=effective, submitted_at=submitted_at,
+            election=election, voter=token, voters=tokens, answers=effective, submitted_at=submitted_at,
             body_template=smtp.body_template, values=values,
             receipt_url=receipt_url, attach_pdf=attach_pdf, template=template,
         ),
         attach_pdf=attach_pdf,
         nr_apc=election.nr_apc or "",
-        attachment_name=ballot_filename(election, token, submitted_at),
         db=db,
         election_id=election.id,
         kind="confirmare vot",
@@ -409,9 +415,8 @@ def submit_apc_vote(nr_apc: str, payload: schemas.VoteSubmission, request: Reque
         )
 
     voter_data = _clean_voter(payload.voter)
-    adresa = _clean_adresa(election, payload.adresa)
     properties = _clean_properties(election, payload.properties)
-    _check_not_voted(db, election, adresa, properties)
+    _check_not_voted(db, election, properties)
 
     questions = public_questions(json.loads(election.questions_json or "[]"))
     property_types = frozenset(p["tip_proprietate"] for p in properties)
@@ -433,66 +438,74 @@ def submit_apc_vote(nr_apc: str, payload: schemas.VoteSubmission, request: Reque
         except Exception:
             raise HTTPException(status_code=400, detail="Semnătura trimisă este invalidă")
 
+    # every property is a separate ballot ("pentru fiecare unitate câte un buletin de vot"):
+    # its own owner record, vote, receipt PDF and file name
     submitted_at = _now()
-    token = models.VoterToken(
-        election_id=election.id,
-        **voter_data,
-        tip_proprietate=properties[0]["tip_proprietate"],
-        nr_proprietate=properties[0]["nr_proprietate"],
-        properties_json=json.dumps(properties, ensure_ascii=False),
-        adresa=adresa,
-        bloc=properties[0]["bloc"],  # the first property's block (the others are in properties_json)
-        voted_at=submitted_at,
-    )
-    db.add(token)
+    ip_address = request.client.host if request.client else ""
+    tokens: list[models.VoterToken] = []
     try:
-        db.flush()  # assigns token.id, needed for file names
         for p in properties:
+            token = models.VoterToken(
+                election_id=election.id,
+                **voter_data,
+                tip_proprietate=p["tip_proprietate"],
+                nr_proprietate=p["nr_proprietate"],
+                properties_json=json.dumps([p], ensure_ascii=False),
+                adresa=p["adresa"],
+                bloc=p["bloc"],
+                voted_at=submitted_at,
+            )
+            db.add(token)
+            db.flush()  # assigns token.id, needed for file names
             db.add(models.VoterProperty(
-                election_id=election.id, token_id=token.id, adresa=adresa, bloc=p["bloc"],
+                election_id=election.id, token_id=token.id, adresa=p["adresa"], bloc=p["bloc"],
                 tip_proprietate=p["tip_proprietate"], nr_proprietate=p["nr_proprietate"],
             ))
-
-        signature_path = None
-        if raw_signature is not None:
-            signature_path = os.path.join(settings.data_dir, "signatures", f"{token.id}.png")
-            with open(signature_path, "wb") as f:
-                f.write(raw_signature)
-
-        vote = models.Vote(
-            token_id=token.id,
-            election_id=election.id,
-            answers_json=json.dumps(effective, ensure_ascii=False),
-            signature_path=signature_path,
-            gdpr_consent_at=submitted_at,
-            submitted_at=submitted_at,
-            ip_address=request.client.host if request.client else "",
-        )
-        db.add(vote)
+            signature_path = None
+            if raw_signature is not None:
+                signature_path = os.path.join(settings.data_dir, "signatures", f"{token.id}.png")
+                with open(signature_path, "wb") as f:
+                    f.write(raw_signature)
+            db.add(models.Vote(
+                token_id=token.id,
+                election_id=election.id,
+                answers_json=json.dumps(effective, ensure_ascii=False),
+                signature_path=signature_path,
+                gdpr_consent_at=submitted_at,
+                submitted_at=submitted_at,
+                ip_address=ip_address,
+            ))
+            tokens.append(token)
         db.commit()
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409, detail="Unul dintre imobile a fost votat între timp. Reîncărcați pagina.")
-    db.refresh(vote)
 
-    receipt_path = os.path.join(settings.data_dir, "receipts", f"{token.id}.pdf")
-    generate_receipt_pdf(
-        election=election,
-        voter=token,
-        answers=effective,
-        submitted_at=submitted_at,
-        signature_path=vote.signature_path,
-        output_path=receipt_path,
-        gdpr_consent_at=submitted_at,
-        template=load_template(db),
-    )
-    vote.receipt_pdf_path = receipt_path
+    template = load_template(db)
+    attachments: list[tuple[str, str]] = []
+    for token in tokens:
+        receipt_path = os.path.join(settings.data_dir, "receipts", f"{token.id}.pdf")
+        generate_receipt_pdf(
+            election=election,
+            voter=token,
+            answers=effective,
+            submitted_at=submitted_at,
+            signature_path=token.vote.signature_path,
+            output_path=receipt_path,
+            gdpr_consent_at=submitted_at,
+            template=template,
+        )
+        token.vote.receipt_pdf_path = receipt_path
+        attachments.append((receipt_path, ballot_filename(election, token, submitted_at)))
     db.commit()
 
+    token = tokens[0]
+    votes = [t.vote for t in tokens]
     email_sent, sent_to = False, ""
     try:
-        email_sent, sent_to = _send_confirmation(db, election, token, effective, submitted_at, receipt_path)
-        vote.email_sent = email_sent
+        email_sent, sent_to = _send_confirmation(db, election, tokens, effective, submitted_at, attachments)
+        for vote in votes:
+            vote.email_sent = email_sent
         db.commit()
     except Exception as exc:  # noqa: BLE001 - a mail problem must never fail the vote
         print(f"[email] Confirmarea votului nu a fost trimisă: {exc}")
@@ -510,6 +523,7 @@ def submit_apc_vote(nr_apc: str, payload: schemas.VoteSubmission, request: Reque
         "email_sent": email_sent,
         "email_recipient": sent_to,
         "receipt_url": f"/api/ballot/receipt/{token.id}.pdf",
+        "receipts": [f"/api/ballot/receipt/{t.id}.pdf" for t in tokens],  # one ballot per property
         "properties": properties,
     }
 

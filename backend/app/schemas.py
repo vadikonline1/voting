@@ -34,6 +34,7 @@ class PropertyItem(BaseModel):
     tip_proprietate: str = "apartament"  # apartament | debara | parcare
     nr_proprietate: str = ""
     bloc: str = ""  # blocul imobilului (fiecare imobil poate fi în alt bloc)
+    adresa: str = ""  # adresa condominiului în care se află imobilul (dacă APC are mai multe)
 
 
 class ElectionIn(BaseModel):
