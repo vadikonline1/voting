@@ -35,11 +35,11 @@ export default function AdminLogin() {
         <h1>Panou de administrare</h1>
         <label className="field">
           <span>Utilizator</span>
-          <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
+          <input name="AdminLogin-38" value={username} onChange={(e) => setUsername(e.target.value)} autoFocus />
         </label>
         <label className="field">
           <span>Parolă</span>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input name="AdminLogin-42" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </label>
         {error && <p className="error">{error}</p>}
         <button className="btn btn-primary" type="submit" disabled={loading}>

@@ -105,7 +105,7 @@ export default function AdminBallotTemplate() {
         <div className="actions-row">
           <label className="field inline-field">
             <span>Exemplu cu votul</span>
-            <select value={electionId} onChange={(e) => setElectionId(e.target.value)}>
+            <select name="AdminBallotTemplate-108" value={electionId} onChange={(e) => setElectionId(e.target.value)}>
               <option value="">— ultimul vot —</option>
               {elections.map((e) => (
                 <option key={e.id} value={e.id}>
@@ -129,7 +129,7 @@ export default function AdminBallotTemplate() {
           {FIELDS.map((f) => (
             <label key={f.key} className="field">
               <span>{f.label}</span>
-              <textarea
+              <textarea name="AdminBallotTemplate-132"
                 rows={f.key === "title" ? 2 : 5}
                 value={tpl[f.key] || ""}
                 ref={(el) => {

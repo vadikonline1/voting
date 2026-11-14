@@ -72,7 +72,7 @@ export default function AdminSmtp() {
 
       <fieldset className="smtp-fieldset" disabled={locked}>
         <label className="checkbox-field">
-          <input
+          <input name="AdminSmtp-75"
             type="checkbox"
             checked={form.enabled}
             onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
@@ -84,29 +84,29 @@ export default function AdminSmtp() {
         <div className="field-row">
           <label className="field">
             <span>Host SMTP</span>
-            <input value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} placeholder="smtp.gmail.com" />
+            <input name="AdminSmtp-87" value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} placeholder="smtp.gmail.com" />
           </label>
           <label className="field field-narrow">
             <span>Port</span>
-            <input type="number" value={form.port} onChange={(e) => setForm({ ...form, port: Number(e.target.value) })} />
+            <input name="AdminSmtp-91" type="number" value={form.port} onChange={(e) => setForm({ ...form, port: Number(e.target.value) })} />
           </label>
         </div>
 
         <div className="field-row">
           <label className="field">
             <span>Utilizator</span>
-            <input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
+            <input name="AdminSmtp-98" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
           </label>
           <label className="field">
             <span>Parolă {form.has_password && "(setată — lasă gol ca să o păstrezi)"}</span>
-            <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            <input name="AdminSmtp-102" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
           </label>
         </div>
 
         <div className="field-row">
           <label className="field">
             <span>Email expeditor</span>
-            <input value={form.from_email} onChange={(e) => setForm({ ...form, from_email: e.target.value })} />
+            <input name="AdminSmtp-109" value={form.from_email} onChange={(e) => setForm({ ...form, from_email: e.target.value })} />
           </label>
           <p className="muted field-hint">
             Numele expeditorului este întotdeauna numărul APC al votului (ex. <code>12</code>).
@@ -114,7 +114,7 @@ export default function AdminSmtp() {
         </div>
 
         <label className="checkbox-field">
-          <input type="checkbox" checked={form.use_tls} onChange={(e) => setForm({ ...form, use_tls: e.target.checked })} />
+          <input name="AdminSmtp-117" type="checkbox" checked={form.use_tls} onChange={(e) => setForm({ ...form, use_tls: e.target.checked })} />
           Folosește STARTTLS (recomandat pentru portul 587)
         </label>
       </fieldset>
@@ -122,11 +122,11 @@ export default function AdminSmtp() {
       <div className="form-section-title">Conținutul emailului</div>
       <label className="field">
         <span>Subiect email</span>
-        <input value={form.subject_template} onChange={(e) => setForm({ ...form, subject_template: e.target.value })} />
+        <input name="AdminSmtp-125" value={form.subject_template} onChange={(e) => setForm({ ...form, subject_template: e.target.value })} />
       </label>
       <label className="field">
         <span>Conținut email</span>
-        <textarea rows={6} value={form.body_template} onChange={(e) => setForm({ ...form, body_template: e.target.value })} />
+        <textarea name="AdminSmtp-129" rows={6} value={form.body_template} onChange={(e) => setForm({ ...form, body_template: e.target.value })} />
       </label>
       <p className="muted">
         Variabile: <code>{"{voter_name}"}</code> <code>{"{election_title}"}</code> <code>{"{submitted_at}"}</code>{" "}
@@ -148,7 +148,7 @@ export default function AdminSmtp() {
       <div className="test-box">
         <div className="form-section-title">Test trimitere</div>
         <div className="test-row">
-          <input
+          <input name="AdminSmtp-151"
             placeholder="email@exemplu.com"
             value={testEmail}
             onChange={(e) => setTestEmail(e.target.value)}

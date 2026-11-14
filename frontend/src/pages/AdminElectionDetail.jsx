@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../api";
 import ResultsView from "../components/ResultsView";
+import { formatDay } from "../dates";
 
 const TIP_LABELS = { apartament: "Apartament", debara: "Debara", parcare: "Parcare" };
 
@@ -71,7 +72,7 @@ export default function AdminElectionDetail() {
       return;
     }
     try {
-      await api.extendElection(id, new Date(newEnd).toISOString());
+      await api.extendElection(id, newEnd); // a day: the vote closes at the end of it (Chisinau time)
       setExtendStatus("Termenul de votare a fost prelungit. Reamintirile către APC vor fi trimise din nou pentru noua dată.");
       setNewEnd("");
       loadResults();
@@ -145,9 +146,7 @@ export default function AdminElectionDetail() {
             <p className="muted">
               Încheiere actuală:{" "}
               <strong>
-                {resultsData?.end_date_vot
-                  ? new Date(resultsData.end_date_vot).toLocaleString("ro-RO")
-                  : "nesetat"}
+                {resultsData?.end_date_vot ? formatDay(resultsData.end_date_vot) : "nesetat"}
               </strong>
             </p>
             <p className="muted section-hint">
@@ -162,8 +161,8 @@ export default function AdminElectionDetail() {
               </p>
             )}
             <div className="extend-row">
-              <input
-                type="datetime-local"
+              <input name="AdminElectionDetail-164"
+                type="date"
                 value={newEnd}
                 onChange={(e) => setNewEnd(e.target.value)}
                 aria-label="Noua dată de încheiere"

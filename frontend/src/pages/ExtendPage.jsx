@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../api";
+import { formatDay } from "../dates";
 
 const PERIOD_LABELS = {
   1: "1 zi",
@@ -11,8 +12,8 @@ const PERIOD_LABELS = {
 };
 
 function formatDate(iso) {
-  if (!iso) return "—";
-  return new Date(iso).toLocaleString("ro-RO", { dateStyle: "long", timeStyle: "short" });
+  // the deadline day, in Chisinau time
+  return formatDay(iso);
 }
 
 /** Public page behind the secret link sent to the APC: the APC chooses how long to prolong the vote. */

@@ -65,7 +65,7 @@ export default function AdminChangePassword() {
 
       <label className="field">
         <span>Parola actuală</span>
-        <input
+        <input name="current"
           type="password"
           value={form.current}
           onChange={(e) => setField("current", e.target.value)}
@@ -76,7 +76,7 @@ export default function AdminChangePassword() {
 
       <label className="field">
         <span>Parola nouă (minimum 8 caractere)</span>
-        <input
+        <input name="next"
           type="password"
           value={form.next}
           onChange={(e) => setField("next", e.target.value)}
@@ -86,7 +86,7 @@ export default function AdminChangePassword() {
 
       <label className="field">
         <span>Repetați parola nouă</span>
-        <input
+        <input name="confirm"
           type="password"
           value={form.confirm}
           onChange={(e) => setField("confirm", e.target.value)}

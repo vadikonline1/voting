@@ -3,11 +3,12 @@
 The APC chooses how many days to add. The new end is counted from the current end date, or from
 now when the vote has already ended. The expiry reminders restart for the new end date, and the
 final results email is sent again when the prolonged vote ends."""
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from . import models
 from .config import settings
 from .results import _aware
+from .tz import add_days_from
 
 EXTEND_OPTIONS = (1, 3, 7, 14, 30)  # days the APC can add
 
@@ -24,7 +25,8 @@ def prolong(db, election: models.Election, days: int) -> datetime:
     now = datetime.now(timezone.utc)
     end = _aware(election.end_date_vot) or now
     base = end if end > now else now
-    new_end = (base + timedelta(days=days)).replace(tzinfo=None)
+    # whole days in Chisinau time: the new deadline is the end of the day `days` after the base day
+    new_end = add_days_from(base, days)
 
     election.end_date_vot = new_end
     election.is_active = True

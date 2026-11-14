@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class Question(BaseModel):
@@ -43,8 +43,15 @@ class ElectionIn(BaseModel):
     nr_apc: str = ""
     str_apc: str = ""
     oras: str = ""
-    start_date_vot: Optional[datetime] = None
-    end_date_vot: Optional[datetime] = None
+    start_date_vot: Optional[datetime] = None  # a day: "2026-10-31" (the time part is ignored)
+    end_date_vot: Optional[datetime] = None  # the deadline day: the vote closes at the end of it
+
+    @field_validator("start_date_vot", "end_date_vot", mode="before")
+    @classmethod
+    def _day_only(cls, value):
+        if isinstance(value, str) and len(value.strip()) == 10:
+            return f"{value.strip()}T00:00:00"
+        return value
     tip_proprietate: str = "apartament"
     properties: List[PropertyItem] = Field(default_factory=list)
     allow_multiple_properties: bool = True

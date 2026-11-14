@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import RetentionCard from "../components/RetentionCard";
+import { dayInputValue } from "../dates";
 
 /** A chestiune (titlu-notiță). Its questions below it are lettered a, b, c… from the start. */
 function emptySection() {
@@ -86,14 +87,9 @@ function emptyElection() {
   };
 }
 
-function toInputDate(value) {
-  if (!value) return "";
-  return value.slice(0, 16);
-}
-
-/** A vote is expired when its end date has passed. */
+/** A vote is expired when its deadline day (in Chisinau time) has passed: the vote closes at its end. */
 function isExpired(e) {
-  return !!e.end_date_vot && new Date(e.end_date_vot).getTime() < Date.now();
+  return !!e.end_date_vot && new Date(e.end_date_vot.endsWith("Z") ? e.end_date_vot : `${e.end_date_vot}Z`).getTime() < Date.now();
 }
 
 /** Small line icons for the action buttons (the text is kept as title / aria-label). */
@@ -163,8 +159,8 @@ export default function AdminElections() {
       ...e,
       // votes saved before the address list existed: the single address becomes the first line
       adrese: e.adrese && e.adrese.length ? e.adrese : e.str_apc ? [e.str_apc] : [],
-      start_date_vot: toInputDate(e.start_date_vot),
-      end_date_vot: toInputDate(e.end_date_vot),
+      start_date_vot: dayInputValue(e.start_date_vot),
+      end_date_vot: dayInputValue(e.end_date_vot),
       property_types: [...new Set((e.properties || []).map((p) => p.tip_proprietate))],
       questions: e.questions.map((q, i) => ({
         ...q,
@@ -273,8 +269,9 @@ export default function AdminElections() {
           auto_answer: q.depends_on ? q.auto_answer : null,
         })),
         properties: (editing.property_types || []).map((t) => ({ tip_proprietate: t, nr_proprietate: "" })),
-        start_date_vot: editing.start_date_vot ? new Date(editing.start_date_vot).toISOString() : null,
-        end_date_vot: editing.end_date_vot ? new Date(editing.end_date_vot).toISOString() : null,
+        // a day ("2026-10-31"); the server keeps the start of the first day and the end of the deadline day
+        start_date_vot: editing.start_date_vot || null,
+        end_date_vot: editing.end_date_vot || null,
       };
       if (editing.id) {
         await api.updateElection(editing.id, payload);
@@ -311,12 +308,12 @@ export default function AdminElections() {
 
         <label className="field">
           <span>Titlu intern (vizibil doar în admin)</span>
-          <input value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} required />
+          <input name="AdminElections-311" value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} required />
         </label>
 
         <label className="field">
           <span>Notă internă (opțional, nu apare pe buletin)</span>
-          <textarea
+          <textarea name="AdminElections-316"
             value={editing.description}
             onChange={(e) => setEditing({ ...editing, description: e.target.value })}
             rows={2}
@@ -327,17 +324,17 @@ export default function AdminElections() {
         <div className="field-row">
           <label className="field">
             <span>Nr. APC</span>
-            <input value={editing.nr_apc} onChange={(e) => setEditing({ ...editing, nr_apc: e.target.value })} placeholder="12" required />
+            <input name="AdminElections-327" value={editing.nr_apc} onChange={(e) => setEditing({ ...editing, nr_apc: e.target.value })} placeholder="12" required />
           </label>
           <label className="field">
             <span>Localitatea (oraș)</span>
-            <input value={editing.oras} onChange={(e) => setEditing({ ...editing, oras: e.target.value })} placeholder="Chișinău" required />
+            <input name="AdminElections-331" value={editing.oras} onChange={(e) => setEditing({ ...editing, oras: e.target.value })} placeholder="Chișinău" required />
           </label>
         </div>
 
         <label className="field">
           <span>Adresa condominiului (str_apc) – una pe rând</span>
-          <textarea
+          <textarea name="AdminElections-337"
             rows={3}
             required
             value={(editing.adrese || []).join("\n")}
@@ -352,7 +349,7 @@ export default function AdminElections() {
 
         <label className="field">
           <span>Blocul condominiului (bl_apc) – una pe rând</span>
-          <textarea
+          <textarea name="AdminElections-352"
             rows={3}
             value={(editing.blocuri || []).join("\n")}
             onChange={(e) => setEditing({ ...editing, blocuri: e.target.value.split("\n") })}
@@ -366,18 +363,18 @@ export default function AdminElections() {
 
         <div className="field-row">
           <label className="field">
-            <span>Data Adunării Generale cu prezență</span>
-            <input
-              type="datetime-local"
+            <span>Data Adunării Generale cu prezență (ora Chișinău)</span>
+            <input name="AdminElections-367"
+              type="date"
               value={editing.start_date_vot}
               onChange={(e) => setEditing({ ...editing, start_date_vot: e.target.value })}
               required
             />
           </label>
           <label className="field">
-            <span>Termen-limită remitere buletin (și închidere votare)</span>
-            <input
-              type="datetime-local"
+            <span>Termen-limită remitere buletin (și închidere votare, până la sfârșitul zilei)</span>
+            <input name="AdminElections-376"
+              type="date"
               value={editing.end_date_vot}
               onChange={(e) => setEditing({ ...editing, end_date_vot: e.target.value })}
               required
@@ -386,12 +383,12 @@ export default function AdminElections() {
         </div>
 
         <label className="checkbox-field">
-          <input
+          <input name="AdminElections-386"
             type="checkbox"
             checked={editing.allow_multiple_properties !== false}
             onChange={(e) => setEditing({ ...editing, allow_multiple_properties: e.target.checked })}
           />
-          <span>Permite votarea mai multor imobile (dacă este bifat, proprietarul poate vota mai multe imobile într-un singur buletin; altfel, doar unul)</span>
+          <span>Permite votarea mai multor imobile (fiecare imobil se votează separat, cu propriul buletin; dacă nu este bifat, doar un imobil)</span>
         </label>
 
         <div className="prop-types">
@@ -404,7 +401,7 @@ export default function AdminElections() {
               const on = (editing.property_types || []).includes(t);
               return (
                 <label key={t} className={`prop-chip ${on ? "prop-chip-on" : ""}`}>
-                  <input
+                  <input name="AdminElections-404"
                     type="checkbox"
                     checked={on}
                     onChange={() =>
@@ -442,7 +439,7 @@ export default function AdminElections() {
               ))}
           </div>
           <div className="prop-add-row">
-            <input
+            <input name="AdminElections-442"
               value={newPropType}
               onChange={(e) => setNewPropType(e.target.value)}
               placeholder="Alt tip de imobil (ex. boxă)"
@@ -464,7 +461,7 @@ export default function AdminElections() {
         <div className="field-row">
           <label className="field">
             <span>Buletinul se expediază</span>
-            <select
+            <select name="AdminElections-464"
               value={editing.email_with_attachment ? "with" : "without"}
               onChange={(e) => setEditing({ ...editing, email_with_attachment: e.target.value === "with" })}
             >
@@ -474,7 +471,7 @@ export default function AdminElections() {
           </label>
           <label className="field">
             <span>Copie CC (opțional, virgulă între adrese)</span>
-            <input
+            <input name="AdminElections-474"
               type="text"
               value={editing.email_cc}
               onChange={(e) => setEditing({ ...editing, email_cc: e.target.value })}
@@ -483,7 +480,7 @@ export default function AdminElections() {
           </label>
           <label className="field">
             <span>Copie BCC (opțional, ascunsă)</span>
-            <input
+            <input name="AdminElections-483"
               type="text"
               value={editing.email_bcc}
               onChange={(e) => setEditing({ ...editing, email_bcc: e.target.value })}
@@ -499,7 +496,7 @@ export default function AdminElections() {
         <div className="field-row">
           <label className="field">
             <span>Email APC pentru rezultate (poate conține mai multe adrese, virgulă între ele)</span>
-            <input
+            <input name="AdminElections-499"
               type="text"
               value={editing.results_email || ""}
               onChange={(e) => setEditing({ ...editing, results_email: e.target.value })}
@@ -508,7 +505,7 @@ export default function AdminElections() {
           </label>
         </div>
         <label className="checkbox-field">
-          <input
+          <input name="AdminElections-508"
             type="checkbox"
             checked={editing.notify_results_on_vote !== false}
             onChange={(e) => setEditing({ ...editing, notify_results_on_vote: e.target.checked })}
@@ -522,7 +519,7 @@ export default function AdminElections() {
         </p>
 
         <label className="checkbox-field">
-          <input
+          <input name="AdminElections-522"
             type="checkbox"
             checked={editing.is_active}
             onChange={(e) => setEditing({ ...editing, is_active: e.target.checked })}
@@ -531,7 +528,7 @@ export default function AdminElections() {
         </label>
 
         <label className="checkbox-field">
-          <input
+          <input name="AdminElections-531"
             type="checkbox"
             checked={editing.require_signature}
             onChange={(e) => setEditing({ ...editing, require_signature: e.target.checked })}
@@ -554,14 +551,14 @@ export default function AdminElections() {
                     Șterge chestiunea
                   </button>
                 </div>
-                <textarea
+                <textarea name="AdminElections-554"
                   rows={3}
                   value={q.text}
                   onChange={(e) => updateQuestion(qIdx, { text: e.target.value })}
                   placeholder="Ex.: Alegerea președintelui și secretarului Adunării Generale Mixte"
                 />
                 <label className="checkbox-field exclusive-toggle">
-                  <input
+                  <input name="AdminElections-561"
                     type="checkbox"
                     checked={!!q.exclusive}
                     onChange={(e) => updateQuestion(qIdx, { exclusive: e.target.checked })}
@@ -572,7 +569,7 @@ export default function AdminElections() {
                   </span>
                 </label>
                 <label className="checkbox-field">
-                  <input
+                  <input name="AdminElections-572"
                     type="checkbox"
                     checked={!!q.hidden}
                     onChange={(e) => updateQuestion(qIdx, { hidden: e.target.checked })}
@@ -583,7 +580,7 @@ export default function AdminElections() {
                 </label>
                 <label className="field">
                   <span>Afișează această chestiune doar pentru imobilele de tip</span>
-                  <select
+                  <select name="AdminElections-583"
                     value={q.property_type || ""}
                     onChange={(e) => updateQuestion(qIdx, { property_type: e.target.value })}
                   >
@@ -613,7 +610,7 @@ export default function AdminElections() {
                 <span className="qe-head-title">Întrebarea {q.number || "?"}</span>
                 <div className="qe-head-actions">
                   <label className="qe-check">
-                    <input
+                    <input name="AdminElections-613"
                       type="checkbox"
                       checked={q.required}
                       onChange={(e) => updateQuestion(qIdx, { required: e.target.checked })}
@@ -621,7 +618,7 @@ export default function AdminElections() {
                     Obligatorie
                   </label>
                   <label className="qe-check" title="Întrebarea nu apare la vot, pe PDF, în email sau la rezultate">
-                    <input
+                    <input name="AdminElections-621"
                       type="checkbox"
                       checked={!!q.hidden}
                       onChange={(e) => updateQuestion(qIdx, { hidden: e.target.checked })}
@@ -637,11 +634,11 @@ export default function AdminElections() {
               <div className="qe-grid">
                 <label className="field qe-letter">
                   <span>Literă</span>
-                  <input value={q.number} onChange={(e) => updateQuestion(qIdx, { number: e.target.value })} placeholder="a" />
+                  <input name="AdminElections-637" value={q.number} onChange={(e) => updateQuestion(qIdx, { number: e.target.value })} placeholder="a" />
                 </label>
                 <label className="field qe-text">
                   <span>Textul întrebării</span>
-                  <textarea
+                  <textarea name="AdminElections-641"
                     rows={2}
                     value={q.text}
                     onChange={(e) => updateQuestion(qIdx, { text: e.target.value })}
@@ -650,7 +647,7 @@ export default function AdminElections() {
                 </label>
                 <label className="field qe-type">
                   <span>Tip de răspuns</span>
-                  <select
+                  <select name="AdminElections-650"
                     value={q.type}
                     onChange={(e) => {
                       const type = e.target.value;
@@ -671,7 +668,7 @@ export default function AdminElections() {
                 <div className="qe-chips">
                   {q.options.map((opt, optIdx) => (
                     <div key={optIdx} className="qe-chip">
-                      <input
+                      <input name="AdminElections-671"
                         value={opt}
                         placeholder={`Varianta ${optIdx + 1}`}
                         onChange={(e) => updateOption(qIdx, optIdx, e.target.value)}
@@ -704,7 +701,7 @@ export default function AdminElections() {
                     <div className="qe-grid">
                       <label className="field qe-type">
                         <span>Întrebarea</span>
-                        <select value={q.depends_on || ""} onChange={(e) => setDependency(qIdx, e.target.value)}>
+                        <select name="AdminElections-704" value={q.depends_on || ""} onChange={(e) => setDependency(qIdx, e.target.value)}>
                           <option value="">— fără condiție —</option>
                           {parents.map((p) => (
                             <option key={p.id} value={p.id}>
@@ -717,7 +714,7 @@ export default function AdminElections() {
                         <>
                           <label className="field qe-type">
                             <span>Dacă răspunsul este</span>
-                            <select
+                            <select name="AdminElections-717"
                               value={q.depends_value || ""}
                               onChange={(e) => updateQuestion(qIdx, { depends_value: e.target.value })}
                             >
@@ -730,7 +727,7 @@ export default function AdminElections() {
                           </label>
                           <label className="field qe-type">
                             <span>Atunci se setează automat</span>
-                            <select
+                            <select name="AdminElections-730"
                               value={q.auto_answer || ""}
                               onChange={(e) => updateQuestion(qIdx, { auto_answer: e.target.value })}
                             >

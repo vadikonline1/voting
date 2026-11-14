@@ -7,6 +7,7 @@ from datetime import datetime
 
 from . import models
 from .config import settings
+from .tz import format_day
 
 PLACEHOLDER = "…………………"
 FIELDS = ("title", "paragraph1", "paragraph2", "note")
@@ -79,11 +80,9 @@ def render(text: str, values: dict) -> str:
 
 
 def _date(dt: datetime | None, long: bool = False) -> str:
-    if not dt:
-        return PLACEHOLDER
-    if long:
-        return f"{dt.day} {_MONTHS[dt.month - 1]} {dt.year}"
-    return dt.strftime("%d.%m.%Y")
+    """The day in Chisinau time (the vote's dates are days, see tz.py)."""
+    text = format_day(dt, long=long)
+    return text if text else PLACEHOLDER
 
 
 def _imobile(election, voter) -> str:

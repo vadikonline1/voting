@@ -16,6 +16,7 @@ from .smtp_config import get_smtp
 from .results import _aware, compute_results, dashboard_url
 from .results_email import build_results_email_html, build_results_email_text
 from .results_pdf import generate_results_pdf
+from .tz import format_day
 
 
 def _results_pdf_name(election: models.Election) -> str:
@@ -197,7 +198,7 @@ def _expiry_email(db, election: models.Election, days_left: int, end: datetime) 
     link = extend_url(election)
     unit = "zi" if days_left == 1 else "zile"
     subject = f"Votarea expiră în {days_left} {unit} – APC nr. {election.nr_apc}"
-    end_text = end.strftime("%d.%m.%Y %H:%M UTC")
+    end_text = format_day(end)  # the deadline day in Chisinau time
     text = (
         f"Votarea pentru APC nr. {election.nr_apc} ({election.title}) expiră în {days_left} {unit}, "
         f"la data {end_text}.\n\n"

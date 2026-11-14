@@ -466,7 +466,7 @@ export default function VotePage() {
               <span>
                 Nume și prenume <span className="required">*</span>
               </span>
-              <input
+              <input name="nume_prenume"
                 value={voter.nume_prenume}
                 onChange={(e) => setVoterField("nume_prenume", e.target.value)}
                 placeholder="Ion Popescu"
@@ -479,7 +479,7 @@ export default function VotePage() {
               <span>
                 Telefon <span className="required">*</span>
               </span>
-              <input
+              <input name="phone"
                 value={voter.phone}
                 onChange={(e) => setVoterField("phone", e.target.value)}
                 placeholder="+373 69 123 456"
@@ -495,7 +495,7 @@ export default function VotePage() {
             <span>
               Adresa de corespondență poștală <span className="required">*</span>
             </span>
-            <input
+            <input name="str_locatar"
               value={voter.str_locatar}
               onChange={(e) => setVoterField("str_locatar", e.target.value)}
               placeholder="str. Exemplu 1, ap. 5, Chișinău"
@@ -507,7 +507,7 @@ export default function VotePage() {
 
           <label className={`field ${voterErrors.email ? "field-invalid" : ""}`}>
             <span>Adresă electronică (email)</span>
-            <input
+            <input name="email"
               type="email"
               value={voter.email}
               onChange={(e) => setVoterField("email", e.target.value)}
@@ -702,7 +702,7 @@ export default function VotePage() {
         </section>
 
         <label className={`checkbox-field gdpr-field ${gdprError ? "field-invalid" : ""}`}>
-          <input
+          <input name="VotePage-705"
             type="checkbox"
             checked={gdpr}
             onChange={(e) => {

@@ -88,7 +88,7 @@ export default function RetentionCard({ onChanged }) {
           </p>
         </div>
         <div className="retention-confirm">
-          <input
+          <input name="RetentionCard-91"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             placeholder={`Scrieți ${CONFIRM_WORDS}`}

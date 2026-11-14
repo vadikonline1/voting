@@ -24,6 +24,7 @@ from ..extension import extend_url
 from ..notifications import send_links_email, send_results_email
 from ..results import compute_results, dashboard_url
 from ..smtp_config import get_smtp
+from ..tz import end_of_day, start_of_day
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -194,8 +195,9 @@ def _apply_election_fields(election: models.Election, payload: schemas.ElectionI
     election.blocuri_json = json.dumps(_clean_addresses(payload.blocuri), ensure_ascii=False)
     election.str_apc = "; ".join(addresses) if addresses else (payload.str_apc or "").strip()
     election.oras = payload.oras
-    election.start_date_vot = payload.start_date_vot
-    election.end_date_vot = payload.end_date_vot
+    # the vote runs by days in Chisinau time: from the start of the first day to the end of the deadline day
+    election.start_date_vot = start_of_day(payload.start_date_vot)
+    election.end_date_vot = end_of_day(payload.end_date_vot)
     election.tip_proprietate = payload.tip_proprietate
     election.allow_multiple_properties = bool(payload.allow_multiple_properties)
     election.chestiune = payload.chestiune or ""
@@ -247,18 +249,21 @@ def update_election(election_id: int, payload: schemas.ElectionIn, username: str
 @router.post("/elections/{election_id}/extend")
 def extend_election(
     election_id: int,
-    end_date: datetime,
+    end_date: str,
     username: str = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """Prolong the vote: sets a new end_date_vot. The expiry reminders start again for the new date."""
+    """Prolong the vote to the end of the chosen day (Chisinau time). The expiry reminders start again."""
     election = db.query(models.Election).get(election_id)
     if not election:
         raise HTTPException(status_code=404, detail="Votul nu a fost găsit")
-    if end_date.tzinfo is not None:
-        end_date = end_date.astimezone(timezone.utc).replace(tzinfo=None)
-    if end_date <= datetime.utcnow():
+    try:
+        new_end = end_of_day(end_date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Data de încheiere nu este validă.")
+    if new_end <= datetime.utcnow():
         raise HTTPException(status_code=400, detail="Noua dată de încheiere trebuie să fie în viitor.")
+    end_date = new_end
     election.end_date_vot = end_date
     election.is_active = True
     election.updated_at = datetime.now(timezone.utc)

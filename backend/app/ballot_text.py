@@ -5,6 +5,7 @@ import re
 from datetime import datetime
 
 from .ballot_template import DEFAULT_TEMPLATE, FIELDS, PLACEHOLDER, render, template_values
+from .tz import format_day
 
 GDPR_TEXT = (
     "Accept prelucrarea datelor mele cu caracter personal (nume și prenume, telefon, "
@@ -48,9 +49,8 @@ def question_label(question: dict, index: int) -> str:
 
 
 def format_date_ro(dt: datetime | None) -> str:
-    if not dt:
-        return PLACEHOLDER
-    return dt.strftime("%d.%m.%Y")
+    text = format_day(dt)
+    return text if text else PLACEHOLDER
 
 
 def build_ballot_texts(election, voter, template: dict | None = None, submitted_at=None) -> dict:
