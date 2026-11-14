@@ -34,6 +34,7 @@ export const api = {
   // public results dashboard
   publicResults: (publicUuid) => request(`/public/results/${publicUuid}`),
   getExtension: (token) => request(`/extend/${encodeURIComponent(token)}`),
+  sendLinks: (electionId) => request(`/admin/elections/${electionId}/send-links`, { method: "POST" }),
   extendVote: (token, days) =>
     request(`/extend/${encodeURIComponent(token)}`, { method: "POST", body: JSON.stringify({ days }) }),
 

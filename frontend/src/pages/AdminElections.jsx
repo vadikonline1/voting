@@ -89,8 +89,47 @@ function toInputDate(value) {
   return value.slice(0, 16);
 }
 
+/** A vote is expired when its end date has passed. */
+function isExpired(e) {
+  return !!e.end_date_vot && new Date(e.end_date_vot).getTime() < Date.now();
+}
+
+/** Small line icons for the action buttons (the text is kept as title / aria-label). */
+const ICON_PATHS = {
+  edit: (
+    <>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </>
+  ),
+  checklist: (
+    <>
+      <rect x="8" y="2" width="8" height="4" rx="1" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <path d="M9 12h6M9 16h6" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+    </>
+  ),
+};
+
+function Icon({ name }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICON_PATHS[name]}
+    </svg>
+  );
+}
+
 export default function AdminElections() {
   const [elections, setElections] = useState([]);
+  const [view, setView] = useState("active"); // "active" | "expired"
   const [editing, setEditing] = useState(null); // election object being edited, or null
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -258,7 +297,12 @@ export default function AdminElections() {
   if (editing) {
     return (
       <form className="card" onSubmit={handleSave}>
-        <h2>{editing.id ? "Editează votul" : "Vot nou"}</h2>
+        <div className="actions-row">
+          <button className="btn" type="button" onClick={() => setEditing(null)}>
+            ← Înapoi la lista de voturi
+          </button>
+          <h2>{editing.id ? "Editează votul" : "Vot nou"}</h2>
+        </div>
         {error && <p className="error">{error}</p>}
 
         <label className="field">
@@ -717,12 +761,24 @@ export default function AdminElections() {
     );
   }
 
+  const activeList = elections.filter((e) => !isExpired(e));
+  const expiredList = elections.filter((e) => isExpired(e));
+  const visible = view === "active" ? activeList : expiredList;
+
   return (
     <div>
       <div className="actions-row">
         <h2>Voturi APC</h2>
         <button className="btn btn-primary" onClick={startNew}>
           + Vot nou
+        </button>
+      </div>
+      <div className="tabs">
+        <button className={view === "active" ? "tab active" : "tab"} onClick={() => setView("active")}>
+          Active ({activeList.length})
+        </button>
+        <button className={view === "expired" ? "tab active" : "tab"} onClick={() => setView("expired")}>
+          Expirate ({expiredList.length})
         </button>
       </div>
       {error && <p className="error">{error}</p>}
@@ -741,12 +797,18 @@ export default function AdminElections() {
             </tr>
           </thead>
           <tbody>
-            {elections.length === 0 && (
+            {visible.length === 0 && (
               <tr>
-                <td colSpan={8} className="table-empty">Nu există voturi. Creați primul vot cu „+ Vot nou”.</td>
+                <td colSpan={8} className="table-empty">
+                  {elections.length === 0
+                    ? "Nu există voturi. Creați primul vot cu „+ Vot nou”."
+                    : view === "active"
+                      ? "Nu există voturi active."
+                      : "Nu există voturi expirate."}
+                </td>
               </tr>
             )}
-            {elections.map((e) => (
+            {visible.map((e) => (
               <tr key={e.id}>
                 <td data-label="Titlu intern">
                   <strong>{e.title}</strong>
@@ -777,15 +839,15 @@ export default function AdminElections() {
                   </span>
                 </td>
                 <td className="col-actions" data-label="Acțiuni">
-                  <div className="row-actions">
-                    <button className="btn" onClick={() => startEdit(e)}>
-                      Editează
+                  <div className="row-actions icon-actions">
+                    <button className="icon-btn" title="Editează votul" aria-label="Editează votul" onClick={() => startEdit(e)}>
+                      <Icon name="edit" />
                     </button>
-                    <Link className="btn" to={`/admin/elections/${e.id}`}>
-                      Checklist
+                    <Link className="icon-btn" title="Checklist și emailuri" aria-label="Checklist și emailuri" to={`/admin/elections/${e.id}`}>
+                      <Icon name="checklist" />
                     </Link>
-                    <button className="btn btn-danger" onClick={() => handleDelete(e.id)}>
-                      Șterge
+                    <button className="icon-btn icon-btn-danger" title="Șterge votul" aria-label="Șterge votul" onClick={() => handleDelete(e.id)}>
+                      <Icon name="trash" />
                     </button>
                   </div>
                 </td>

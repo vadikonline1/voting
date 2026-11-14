@@ -17,7 +17,7 @@ from ..auth import (
 from ..config import settings
 from ..database import get_db
 from ..extension import extend_url
-from ..notifications import send_results_email
+from ..notifications import send_links_email, send_results_email
 from ..results import compute_results, dashboard_url
 from ..smtp_config import get_smtp
 
@@ -327,6 +327,7 @@ def checklist(election_id: int, username: str = Depends(require_admin), db: Sess
         "election_title": election.title,
         "vote_url": _vote_url(election.nr_apc),
         "extend_url": extend_url(election),
+        "links_email_sent_at": election.links_email_sent_at.isoformat() if election.links_email_sent_at else None,
         "total": total,
         "voted": voted,
         "rows": rows,
@@ -401,6 +402,18 @@ def results(election_id: int, username: str = Depends(require_admin), db: Sessio
         if election.results_final_email_sent_at else None
     )
     return data
+
+
+@router.post("/elections/{election_id}/send-links")
+def send_links(election_id: int, username: str = Depends(require_admin), db: Session = Depends(get_db)):
+    """Email the APC the vote link and the dashboard link (send after all questions are added)."""
+    election = db.query(models.Election).get(election_id)
+    if not election:
+        raise HTTPException(status_code=404, detail="Votul nu a fost găsit")
+    ok, info = send_links_email(db, election)
+    if not ok:
+        raise HTTPException(status_code=400, detail=f"Trimiterea a eșuat: {info}")
+    return {"ok": True, "sent_to": election.results_email, "sent_at": election.links_email_sent_at.isoformat()}
 
 
 @router.post("/elections/{election_id}/send-results")

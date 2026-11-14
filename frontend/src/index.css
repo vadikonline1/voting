@@ -1251,3 +1251,66 @@ h2 { font-size: 1.25rem; }
   margin: 0;
   flex: 0 0 auto;
 }
+
+/* --- Admin: icon action buttons and modal window ------------------------- */
+.icon-actions { flex-wrap: nowrap; gap: 6px; }
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: #fff;
+  color: var(--primary);
+  cursor: pointer;
+  text-decoration: none;
+  flex: 0 0 auto;
+}
+.icon-btn:hover { background: #f2f6fd; border-color: #c9d6ef; }
+.icon-btn-danger { color: var(--danger); }
+.icon-btn-danger:hover { background: #fff5f5; border-color: #f1c2c2; }
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 5vh 16px;
+  z-index: 100;
+  overflow-y: auto;
+}
+.modal {
+  background: #fff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 760px;
+  padding: 20px 22px 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+.modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.modal-head h3 { margin: 0; word-break: break-word; }
+.modal-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0 0 12px;
+  font-size: 14px;
+}
+.modal-grid dt { color: var(--muted); }
+.modal-grid dd { margin: 0; word-break: break-word; }
+.modal pre.email-headers { max-height: 280px; overflow: auto; }
+
+@media (max-width: 720px) {
+  .modal-grid { grid-template-columns: 1fr; gap: 2px; }
+  .modal-grid dt { margin-top: 8px; }
+}

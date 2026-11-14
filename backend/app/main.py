@@ -51,6 +51,7 @@ def _migrate_sqlite():
             "allow_multiple_properties": "BOOLEAN DEFAULT 1",
             "adrese_json": "TEXT DEFAULT '[]'",
             "extend_uuid": "VARCHAR",
+            "links_email_sent_at": "DATETIME",
         },
         "voter_tokens": {
             "tip_proprietate": "VARCHAR DEFAULT 'apartament'",

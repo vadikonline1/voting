@@ -108,6 +108,9 @@ class Election(Base):
     # so a prolonged vote (new end_date_vot) gets its reminders again: {"end": "...", "sent": [3, 2]}
     expiry_reminders_json = Column(Text, default="{}")
 
+    # When the APC received the vote link and the dashboard link (sent from the admin, once all questions are in)
+    links_email_sent_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 

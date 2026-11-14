@@ -16,14 +16,42 @@ export default function AdminElectionDetail() {
   const [sending, setSending] = useState(false);
   const [newEnd, setNewEnd] = useState("");
   const [emailRows, setEmailRows] = useState(null);
-  const [openHeaders, setOpenHeaders] = useState(null);
+  const [selectedEmail, setSelectedEmail] = useState(null); // email row shown in the details modal
+  const [sendingLinks, setSendingLinks] = useState(false);
+  const [linksStatus, setLinksStatus] = useState("");
 
   useEffect(() => {
     if (tab === "emails") {
       api.emailLog(id).then(setEmailRows).catch((e) => setError(e.message));
     }
   }, [tab, id]);
+
+  // Esc closes the email details window
+  useEffect(() => {
+    if (!selectedEmail) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") setSelectedEmail(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedEmail]);
+
   const [extendStatus, setExtendStatus] = useState("");
+
+  async function handleSendLinks() {
+    setSendingLinks(true);
+    setLinksStatus("");
+    setError("");
+    try {
+      const res = await api.sendLinks(id);
+      setLinksStatus(`Linkurile au fost trimise către ${res.sent_to}.`);
+      loadChecklist();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSendingLinks(false);
+    }
+  }
 
   async function handleExtend(e) {
     e.preventDefault();
@@ -137,6 +165,34 @@ export default function AdminElectionDetail() {
             </div>
             {extendStatus && <p className="success">{extendStatus}</p>}
           </form>
+
+          <div className="card">
+            <h3>Trimite linkurile către APC</h3>
+            <p className="muted">
+              Trimiteți-le după ce ați adăugat toate întrebările. Emailul conține linkul de vot (pentru proprietari) și
+              dashboard-ul cu rezultatele, cu avertizarea că informațiile sunt confidențiale.
+            </p>
+            <div className="actions-row">
+              <button
+                className="btn btn-primary"
+                onClick={handleSendLinks}
+                disabled={sendingLinks || !checklistData?.vote_url || !resultsData?.results_email}
+                title={
+                  resultsData && !resultsData.results_email
+                    ? "Configurați adresa APC pentru rezultate în „Editează votul”."
+                    : "Trimite linkul de vot și dashboard-ul pe emailul APC"
+                }
+              >
+                {sendingLinks ? "Se trimite..." : "Trimite linkurile pe email"}
+              </button>
+              <span className="muted">
+                {checklistData?.links_email_sent_at
+                  ? `Ultima trimitere: ${new Date(checklistData.links_email_sent_at).toLocaleString("ro-RO")}`
+                  : "Nu a fost trimis încă."}
+              </span>
+            </div>
+            {linksStatus && <p className="success">{linksStatus}</p>}
+          </div>
 
           <div className="card">
             <h3>Link fix de vot pentru acest APC</h3>
@@ -255,22 +311,75 @@ export default function AdminElectionDetail() {
                       <td data-label="Subiect">
                         {r.subject || "—"}
                         <div>
-                          <button
-                            type="button"
-                            className="btn-link"
-                            onClick={() => setOpenHeaders(openHeaders === r.id ? null : r.id)}
-                          >
-                            {openHeaders === r.id ? "Ascunde headerele" : "Vezi headerele"}
+                          <button type="button" className="btn-link" onClick={() => setSelectedEmail(r)}>
+                            Vezi detaliile
                           </button>
                         </div>
-                        {openHeaders === r.id && (
-                          <pre className="email-headers">{r.headers}</pre>
-                        )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {selectedEmail && (
+            <div className="modal-backdrop" role="presentation" onClick={() => setSelectedEmail(null)}>
+              <div
+                className="modal"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Detaliile emailului"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="modal-head">
+                  <h3>{selectedEmail.subject || "(fără subiect)"}</h3>
+                  <button type="button" className="icon-btn" aria-label="Închide" onClick={() => setSelectedEmail(null)}>
+                    ×
+                  </button>
+                </div>
+                <dl className="modal-grid">
+                  <dt>Data</dt>
+                  <dd>{selectedEmail.created_at ? new Date(selectedEmail.created_at).toLocaleString("ro-RO") : "—"}</dd>
+                  <dt>Tip</dt>
+                  <dd>{selectedEmail.kind || "—"}</dd>
+                  <dt>Status</dt>
+                  <dd>
+                    {selectedEmail.status || "—"}
+                    {selectedEmail.status !== "trimis" && selectedEmail.info ? ` · ${selectedEmail.info}` : ""}
+                  </dd>
+                  <dt>De la</dt>
+                  <dd>{selectedEmail.from || "—"}</dd>
+                  <dt>Către</dt>
+                  <dd>{selectedEmail.to || "—"}</dd>
+                  {selectedEmail.cc && (
+                    <>
+                      <dt>Cc</dt>
+                      <dd>{selectedEmail.cc}</dd>
+                    </>
+                  )}
+                  {selectedEmail.bcc && (
+                    <>
+                      <dt>Bcc</dt>
+                      <dd>{selectedEmail.bcc}</dd>
+                    </>
+                  )}
+                  {selectedEmail.attachment && (
+                    <>
+                      <dt>Atașament</dt>
+                      <dd>{selectedEmail.attachment}</dd>
+                    </>
+                  )}
+                </dl>
+                <h4>Headere</h4>
+                <pre className="email-headers">{selectedEmail.headers || "—"}</pre>
+                {selectedEmail.preview && (
+                  <>
+                    <h4>Previzualizare</h4>
+                    <pre className="email-headers">{selectedEmail.preview}</pre>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>

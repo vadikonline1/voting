@@ -98,6 +98,73 @@ def send_pending_final_results(db) -> int:
     return sent
 
 
+def send_links_email(db, election: models.Election) -> tuple[bool, str]:
+    """Send the APC the fixed vote link (for the owners) and the dashboard link, with a reminder that
+    the information is confidential: the dashboard is shared only with the people the APC chooses."""
+    recipients = (election.results_email or "").strip()
+    if not recipients:
+        return False, "Nu este configurat un email APC pentru rezultate."
+    smtp, _source = get_smtp(db)
+    if not smtp or not smtp.enabled:
+        return False, "SMTP este dezactivat sau neconfigurat."
+    if not election.nr_apc:
+        return False, "Completați numărul APC înainte de trimiterea linkurilor."
+
+    base = settings.public_base_url.rstrip("/")
+    vote_url = f"{base}/{election.nr_apc}"
+    dash_url = dashboard_url(election)
+    nr = election.nr_apc
+    text = (
+        "Bună ziua,\n\n"
+        f"Votul pentru APC nr. {nr} ({election.title}) este pregătit. Vă transmitem două linkuri:\n\n"
+        "1. Link de vot, pentru proprietarii din APC:\n"
+        f"{vote_url}\n"
+        "Proprietarii îl deschid, își completează datele, bifează imobilele pe care le dețin și votează.\n\n"
+        "2. Dashboard cu rezultatele votării în timp real:\n"
+        f"{dash_url}\n\n"
+        "IMPORTANT: informațiile din dashboard sunt confidențiale și destinate exclusiv asociației. "
+        "Dashboard-ul trebuie partajat doar persoanelor cărora asociația le acordă dreptul să vadă aceste "
+        "informații (de exemplu membrilor comitetului). Nu publicați linkul pe site-uri sau în rețele sociale.\n\n"
+        "Linkul de vot se trimite doar proprietarilor din APC.\n\n"
+        f"Cu respect,\n{nr}"
+    )
+    html = (
+        '<div style="font-family:Segoe UI,Roboto,Arial,sans-serif;font-size:15px;line-height:1.55;color:#1f2430;">'
+        "<p>Bună ziua,</p>"
+        f"<p>Votul pentru <strong>APC nr. {escape(str(nr))}</strong> ({escape(election.title)}) este pregătit. "
+        "Vă transmitem două linkuri:</p>"
+        '<p style="margin:14px 0 4px;"><strong>1. Link de vot</strong> (pentru proprietarii din APC):</p>'
+        f'<p style="margin:0 0 6px;"><a href="{escape(vote_url)}" style="color:#2452b5;word-break:break-all;">'
+        f"{escape(vote_url)}</a></p>"
+        '<p style="margin:0 0 14px;font-size:13px;color:#4b5b76;">Proprietarii își completează datele, bifează '
+        "imobilele pe care le dețin și votează.</p>"
+        '<p style="margin:14px 0 4px;"><strong>2. Dashboard cu rezultatele în timp real</strong>:</p>'
+        f'<p style="margin:0 0 14px;"><a href="{escape(dash_url)}" style="color:#2452b5;word-break:break-all;">'
+        f"{escape(dash_url)}</a></p>"
+        '<div style="margin:18px 0 0;padding:14px 16px;border:1px solid #e3d3a8;border-radius:10px;background:#fdf8ea;">'
+        "<strong>Important:</strong> informațiile din dashboard sunt confidențiale și destinate exclusiv asociației. "
+        "Dashboard-ul trebuie partajat doar persoanelor cărora asociația le acordă dreptul să vadă aceste informații "
+        "(de exemplu membrilor comitetului). Nu publicați linkul pe site-uri sau în rețele sociale.</div>"
+        '<p style="margin:14px 0 0;font-size:13px;color:#6b7280;">Linkul de vot se trimite doar proprietarilor din APC.</p>'
+        "</div>"
+    )
+    ok, info = send_email(
+        smtp,
+        to=recipients,
+        subject=f"Linkuri de vot și dashboard – APC nr. {nr}",
+        text_body=text,
+        html_body=html,
+        from_name=nr,
+        db=db,
+        election_id=election.id,
+        kind="linkuri vot",
+    )
+    if ok:
+        election.links_email_sent_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        db.commit()
+    return ok, info
+
+
 def results_dashboard_path(election: models.Election) -> str:
     """Relative dashboard path, useful for admin links."""
     return f"/{election.public_uuid}/dashboard" if election.public_uuid else ""
