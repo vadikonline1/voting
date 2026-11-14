@@ -280,7 +280,16 @@ h2 { font-size: 1.25rem; }
 .checklist-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
 .checklist-table th, .checklist-table td { border-bottom: 1px solid var(--border); padding: 8px 10px; text-align: left; font-size: 0.9rem; }
 
-.results-question { margin-bottom: 18px; }
+/* each question is a card with its own background, so the questions are clearly separated */
+.results-question {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+  border: 1px solid #d5deed;
+  border-left: 4px solid var(--primary);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f5f8fd 100%);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
 .results-question h4 { margin: 0 0 10px; font-size: 1rem; line-height: 1.4; }
 
 /* --- blank home page --------------------------------------------------- */
