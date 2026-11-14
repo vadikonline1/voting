@@ -190,12 +190,14 @@ class VoterToken(Base):
                 continue
             tip = (item.get("tip_proprietate") or "").strip()
             nr = (item.get("nr_proprietate") or "").strip()
+            bloc = (item.get("bloc") or "").strip()
             if tip or nr:
-                cleaned.append({"tip_proprietate": tip or "apartament", "nr_proprietate": nr})
+                cleaned.append({"tip_proprietate": tip or "apartament", "nr_proprietate": nr, "bloc": bloc})
         if not cleaned and self.nr_proprietate:
             cleaned = [{
                 "tip_proprietate": self.tip_proprietate or "apartament",
                 "nr_proprietate": self.nr_proprietate,
+                "bloc": self.bloc or "",
             }]
         return cleaned
 

@@ -52,7 +52,7 @@ VARIABLES = [
     ("adresa", "Adresa condominiului selectată de proprietar (nu toate adresele)", "str. Cornești 7"),
     ("bloc", "Blocul votantului", "E"),
     ("adresa_bloc", "Adresa și blocul votantului, ex. „str. X, blocul E”", "str. Cornești 7, blocul E"),
-    ("imobile", "Imobilele votantului, ex. „apartament 803/E, debara 4”", "apartament 803/E"),
+    ("imobile", "Toate imobilele votantului, fiecare cu blocul lui, ex. „apartament 803/E (bl. E), debara 4 (bl. B)”", "apartament 803/E (bl. E)"),
     ("voter_name", "Numele și prenumele votantului", "Ion Popescu"),
     ("voter_phone", "Telefonul votantului", "+373 60 000 000"),
     ("voter_email", "Emailul votantului", "votant@exemplu.md"),
@@ -87,12 +87,30 @@ def _date(dt: datetime | None, long: bool = False) -> str:
 
 
 def _imobile(election, voter) -> str:
+    """Every property of the owner, each with its block: "apartament 803/E (bl. E), debara 4 (bl. B)"."""
     if voter is None:
         return f"{election.tip_proprietate or 'apartament'} {PLACEHOLDER}"
     props = voter.properties
     if not props:
         return f"{election.tip_proprietate or 'apartament'} {PLACEHOLDER}"
-    return ", ".join(f"{p['tip_proprietate']} {p['nr_proprietate']}" for p in props)
+    parts = []
+    for p in props:
+        item = f"{p['tip_proprietate']} {p['nr_proprietate']}"
+        if p.get("bloc"):
+            item += f" (bl. {p['bloc']})"
+        parts.append(item)
+    return ", ".join(parts)
+
+
+def _blocks_of(voter) -> str:
+    """The distinct blocks of the owner's properties, e.g. "E" or "E, B"."""
+    if voter is None:
+        return ""
+    seen: list[str] = []
+    for p in voter.properties:
+        if p.get("bloc") and p["bloc"] not in seen:
+            seen.append(p["bloc"])
+    return ", ".join(seen)
 
 
 def template_values(election, voter=None, submitted_at: datetime | None = None) -> dict:
@@ -108,8 +126,8 @@ def template_values(election, voter=None, submitted_at: datetime | None = None) 
     else:
         # the address the owner chose (or the only address of the APC), and the block he wrote or picked
         adresa = (getattr(voter, "adresa", "") or "") or (addresses[0] if addresses else str_apc)
-        bloc = getattr(voter, "bloc", "") or ""
-        adresa_bloc = f"{adresa}, blocul {bloc}" if bloc else adresa
+        bloc = _blocks_of(voter)  # the blocks of the properties (each property shows its block in {imobile})
+        adresa_bloc = adresa
 
     public_base = _public_base()
     values = {

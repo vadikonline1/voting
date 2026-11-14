@@ -226,8 +226,12 @@ def _clean_properties(election: models.Election, items: list) -> list[dict]:
             raise HTTPException(status_code=400, detail=f"Tipul de imobil „{tip}” nu este permis în acest APC.")
         if not (1 <= len(nr) <= 30) or not _PROP_RE.match(nr):
             raise HTTPException(status_code=400, detail=f"Numărul imobilului ({tip}) nu este valid.")
-        if not any(c["tip_proprietate"] == tip and c["nr_proprietate"] == nr for c in chosen):
-            chosen.append({"tip_proprietate": tip, "nr_proprietate": nr})
+        # each property has its own block (the blocks can differ between the owner's properties)
+        bloc = _clean_bloc(election, item.bloc)
+        if blocks_required(election) and not bloc:
+            raise HTTPException(status_code=400, detail=f"Selectați blocul pentru imobilul {tip} {nr}.")
+        if not any(c["tip_proprietate"] == tip and c["nr_proprietate"] == nr and c["bloc"] == bloc for c in chosen):
+            chosen.append({"tip_proprietate": tip, "nr_proprietate": nr, "bloc": bloc})
     if not chosen:
         raise HTTPException(status_code=400, detail="Selectați cel puțin un imobil pe care îl dețineți.")
     if len(chosen) > 1 and not election.allow_multiple_properties:
@@ -263,10 +267,16 @@ def _clean_bloc(election: models.Election, bloc: str) -> str:
     return value
 
 
-def _check_not_voted(db: Session, election: models.Election, adresa: str, bloc: str, properties: list[dict]) -> None:
+def blocks_required(election: models.Election) -> bool:
+    """When the admin listed the blocks, every property must name one of them."""
+    return bool(election.blocks)
+
+
+def _check_not_voted(db: Session, election: models.Election, adresa: str, properties: list[dict]) -> None:
     """Refuse properties already voted in this election (same address, block, type and number) and show
     the masked email used for it."""
     for p in properties:
+        bloc = p["bloc"]
         existing = (
             db.query(models.VoterProperty)
             .filter(
@@ -404,9 +414,8 @@ def submit_apc_vote(nr_apc: str, payload: schemas.VoteSubmission, request: Reque
 
     voter_data = _clean_voter(payload.voter)
     adresa = _clean_adresa(election, payload.adresa)
-    bloc = _clean_bloc(election, payload.bloc)
     properties = _clean_properties(election, payload.properties)
-    _check_not_voted(db, election, adresa, bloc, properties)
+    _check_not_voted(db, election, adresa, properties)
 
     questions = public_questions(json.loads(election.questions_json or "[]"))
     property_types = frozenset(p["tip_proprietate"] for p in properties)
@@ -436,7 +445,7 @@ def submit_apc_vote(nr_apc: str, payload: schemas.VoteSubmission, request: Reque
         nr_proprietate=properties[0]["nr_proprietate"],
         properties_json=json.dumps(properties, ensure_ascii=False),
         adresa=adresa,
-        bloc=bloc,
+        bloc=properties[0]["bloc"],  # the first property's block (the others are in properties_json)
         voted_at=submitted_at,
     )
     db.add(token)
@@ -444,7 +453,7 @@ def submit_apc_vote(nr_apc: str, payload: schemas.VoteSubmission, request: Reque
         db.flush()  # assigns token.id, needed for file names
         for p in properties:
             db.add(models.VoterProperty(
-                election_id=election.id, token_id=token.id, adresa=adresa, bloc=bloc,
+                election_id=election.id, token_id=token.id, adresa=adresa, bloc=p["bloc"],
                 tip_proprietate=p["tip_proprietate"], nr_proprietate=p["nr_proprietate"],
             ))
 

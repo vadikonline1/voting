@@ -28,6 +28,11 @@ const FIELD_LABELS = {
   properties: "Imobile",
 };
 
+/** One property of a type: its number and the block it is in. */
+function emptyProperty() {
+  return { nr: "", bloc: "" };
+}
+
 const EMPTY_VOTER = {
   nume_prenume: "",
   phone: "",
@@ -199,11 +204,10 @@ export default function VotePage() {
   const [voter, setVoter] = useState(EMPTY_VOTER);
   // block / address of the APC the owner belongs to (asked only when the APC has several)
   const [adresa, setAdresa] = useState("");
-  // block of the building: picked from the list the APC set, or typed by the owner when there is no list
-  const [bloc, setBloc] = useState("");
   // property selection: types ticked by the owner, and the numbers typed for each type
   const [selectedTypes, setSelectedTypes] = useState([]);
-  const [numbers, setNumbers] = useState({}); // { apartament: ["12", "14"], ... }
+  // each property of a type: its number and its block, e.g. { apartament: [{ nr: "12", bloc: "E" }] }
+  const [numbers, setNumbers] = useState({});
   const [voterErrors, setVoterErrors] = useState({});
   const [gdpr, setGdpr] = useState(false);
   const [gdprError, setGdprError] = useState("");
@@ -248,11 +252,13 @@ export default function VotePage() {
     const out = [];
     for (const tip of selectedTypes) {
       const seen = new Set();
-      for (const raw of numbers[tip] || []) {
-        const nr = (raw || "").trim();
-        if (nr && !seen.has(nr)) {
-          seen.add(nr);
-          out.push({ tip_proprietate: tip, nr_proprietate: nr });
+      for (const item of numbers[tip] || []) {
+        const nr = (item.nr || "").trim();
+        const bloc = (item.bloc || "").trim();
+        const key = `${nr}|${bloc}`;
+        if (nr && !seen.has(key)) {
+          seen.add(key);
+          out.push({ tip_proprietate: tip, nr_proprietate: nr, bloc });
         }
       }
     }
@@ -282,30 +288,30 @@ export default function VotePage() {
     setVoterErrors((prev) => ({ ...prev, properties: undefined }));
     if (selectedTypes.includes(tip)) {
       setSelectedTypes(selectedTypes.filter((t) => t !== tip));
-      setNumbers((n) => ({ ...n, [tip]: [""] }));
+      setNumbers((n) => ({ ...n, [tip]: [emptyProperty()] }));
       return;
     }
     // single-property ballots: ticking a type replaces the previous one
     setSelectedTypes(allowMultiple ? [...selectedTypes, tip] : [tip]);
-    setNumbers((n) => ({ ...n, [tip]: n[tip]?.length ? n[tip] : [""] }));
+    setNumbers((n) => ({ ...n, [tip]: n[tip]?.length ? n[tip] : [emptyProperty()] }));
   }
 
-  function setNumber(tip, index, value) {
+  function updateProperty(tip, index, changes) {
     setVoterErrors((prev) => ({ ...prev, properties: undefined }));
     setNumbers((prev) => ({
       ...prev,
-      [tip]: (prev[tip] || []).map((v, i) => (i === index ? value : v)),
+      [tip]: (prev[tip] || []).map((item, i) => (i === index ? { ...item, ...changes } : item)),
     }));
   }
 
   function addNumber(tip) {
-    setNumbers((prev) => ({ ...prev, [tip]: [...(prev[tip] || []), ""] }));
+    setNumbers((prev) => ({ ...prev, [tip]: [...(prev[tip] || []), emptyProperty()] }));
   }
 
   function removeNumber(tip, index) {
     setNumbers((prev) => {
       const rest = (prev[tip] || []).filter((_, i) => i !== index);
-      return { ...prev, [tip]: rest.length ? rest : [""] };
+      return { ...prev, [tip]: rest.length ? rest : [emptyProperty()] };
     });
   }
 
@@ -314,7 +320,7 @@ export default function VotePage() {
     setError("");
 
     const errors = validateVoter(voter, selectedProps);
-    const emptyRow = selectedTypes.find((tip) => (numbers[tip] || []).some((nr) => !(nr || "").trim()));
+    const emptyRow = selectedTypes.find((tip) => (numbers[tip] || []).some((item) => !(item.nr || "").trim()));
     if (!errors.properties && emptyRow) {
       errors.properties = `Introduceți numărul pentru fiecare imobil de tip ${tipLabel(emptyRow).toLowerCase()} bifat.`;
     }
@@ -327,8 +333,10 @@ export default function VotePage() {
     if (addresses.length > 1 && !adresa) {
       missing.push("Adresa condominiului: selectați adresa din listă.");
     }
-    if (blocks.length > 0 && !bloc) {
-      missing.push("Blocul: selectați blocul din listă.");
+    if (blocks.length > 0) {
+      selectedProps
+        .filter((p) => !p.bloc)
+        .forEach((p) => missing.push(`Blocul pentru imobilul ${tipLabel(p.tip_proprietate).toLowerCase()} ${p.nr_proprietate}: selectați din listă.`));
     }
     if (!gdpr) missing.push("Acordul GDPR: bifați căsuța de acceptare a prelucrării datelor.");
     if (ballot.require_signature && (!sigRef.current || sigRef.current.isEmpty())) {
@@ -362,10 +370,10 @@ export default function VotePage() {
         answers: effective,
         voter: cleanVoter(voter),
         adresa: addresses.length > 1 ? adresa : addresses[0] || "",
-        bloc: blocks.length > 0 ? bloc : bloc.trim(),
         properties: selectedProps.map((p) => ({
           tip_proprietate: p.tip_proprietate,
           nr_proprietate: p.nr_proprietate,
+          bloc: p.bloc,
         })),
         gdpr_consent: true,
         signature_png_base64: ballot.require_signature ? sigRef.current.toPngBase64() : null,
@@ -532,28 +540,6 @@ export default function VotePage() {
               ))}
             </fieldset>
           )}
-          {blocks.length > 0 ? (
-            <fieldset className={`address-choice ${!bloc && summary.length ? "address-choice-missing" : ""}`}>
-              <legend>Blocul *</legend>
-              {blocks.map((b) => (
-                <label key={b} className={`address-option ${bloc === b ? "address-option-on" : ""}`}>
-                  <input type="radio" name="bloc" value={b} checked={bloc === b} onChange={() => setBloc(b)} />
-                  <span>{b}</span>
-                </label>
-              ))}
-            </fieldset>
-          ) : (
-            <label className="field block-free">
-              <span>Blocul (scrieți dacă există)</span>
-              <input
-                value={bloc}
-                onChange={(e) => setBloc(e.target.value)}
-                maxLength={60}
-                placeholder="ex. Bl. 2"
-                autoComplete="off"
-              />
-            </label>
-          )}
           <p className="property-help">
             Apăsați pe tipul imobilului pe care îl dețineți, apoi scrieți numărul lui.
             {allowMultiple
@@ -564,7 +550,7 @@ export default function VotePage() {
             {propertyTypes.map((tip) => {
               const ticked = selectedTypes.includes(tip);
               const disabled = !allowMultiple && selectedTypes.length > 0 && !ticked;
-              const rows = numbers[tip] && numbers[tip].length ? numbers[tip] : [""];
+              const rows = numbers[tip] && numbers[tip].length ? numbers[tip] : [emptyProperty()];
               const name = tipLabel(tip);
               return (
                 <div key={tip} className={`property-row ${ticked ? "property-row-on" : ""}`}>
@@ -580,7 +566,7 @@ export default function VotePage() {
                   </button>
                   {ticked && (
                     <div className="property-fields">
-                      {rows.map((nr, idx) => (
+                      {rows.map((item, idx) => (
                         <div key={idx} className="property-field">
                           <label className="property-field-label" htmlFor={`prop-${tip}-${idx}`}>
                             Numărul imobilului{rows.length > 1 ? ` ${idx + 1}` : ""}
@@ -589,8 +575,8 @@ export default function VotePage() {
                             <input
                               id={`prop-${tip}-${idx}`}
                               className="property-input"
-                              value={nr}
-                              onChange={(e) => setNumber(tip, idx, e.target.value)}
+                              value={item.nr}
+                              onChange={(e) => updateProperty(tip, idx, { nr: e.target.value })}
                               placeholder="Scrieți numărul aici"
                               inputMode="text"
                               autoComplete="off"
@@ -602,6 +588,34 @@ export default function VotePage() {
                               </button>
                             )}
                           </div>
+                          <label className="property-field-label" htmlFor={`prop-${tip}-${idx}-bloc`}>
+                            Blocul
+                          </label>
+                          {blocks.length > 0 ? (
+                            <select
+                              id={`prop-${tip}-${idx}-bloc`}
+                              className="property-input"
+                              value={item.bloc || ""}
+                              onChange={(e) => updateProperty(tip, idx, { bloc: e.target.value })}
+                            >
+                              <option value="">— alegeți blocul —</option>
+                              {blocks.map((b) => (
+                                <option key={b} value={b}>
+                                  {b}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              id={`prop-${tip}-${idx}-bloc`}
+                              className="property-input"
+                              value={item.bloc || ""}
+                              onChange={(e) => updateProperty(tip, idx, { bloc: e.target.value })}
+                              maxLength={60}
+                              placeholder="ex. Bl. E (dacă există)"
+                              autoComplete="off"
+                            />
+                          )}
                         </div>
                       ))}
                       {allowMultiple && (

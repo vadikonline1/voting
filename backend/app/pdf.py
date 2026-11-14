@@ -86,6 +86,24 @@ def generate_receipt_pdf(
         elements.append(Paragraph(f"Vot: <b>{_answer_text(q, answers.get(qid))}</b>", normal_style))
         elements.append(Spacer(1, 3 * mm))
 
+    # every property the owner voted, enumerated with its block
+    props = voter.properties if voter is not None else []
+    if props:
+        elements.append(Paragraph("Imobilele pentru care votați:", h2_style))
+        rows = [["Nr.", "Tip de imobil", "Număr", "Bloc"]]
+        for index, p in enumerate(props, start=1):
+            rows.append([str(index), p.get("tip_proprietate", ""), p.get("nr_proprietate", ""), p.get("bloc") or "—"])
+        table = Table(rows, colWidths=[15 * mm, 60 * mm, 50 * mm, 40 * mm], hAlign="LEFT")
+        table.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (-1, -1), "DejaVuSans"),
+            ("FONTNAME", (0, 0), (-1, 0), "DejaVuSans-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 9.5),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#9ca3af")),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eef2f8")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        elements += [table, Spacer(1, 5 * mm)]
+
     if texts.get("note"):
         elements.append(Paragraph(xml_escape(texts["note"]), note_style))
         elements.append(Spacer(1, 4 * mm))

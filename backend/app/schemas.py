@@ -33,6 +33,7 @@ class Question(BaseModel):
 class PropertyItem(BaseModel):
     tip_proprietate: str = "apartament"  # apartament | debara | parcare
     nr_proprietate: str = ""
+    bloc: str = ""  # blocul imobilului (fiecare imobil poate fi în alt bloc)
 
 
 class ElectionIn(BaseModel):

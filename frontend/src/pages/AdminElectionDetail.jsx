@@ -261,7 +261,7 @@ export default function AdminElectionDetail() {
                       <td>
                         {r.properties && r.properties.length
                           ? r.properties
-                              .map((p) => `${TIP_LABELS[p.tip_proprietate] || p.tip_proprietate} ${p.nr_proprietate}`)
+                              .map((p) => `${TIP_LABELS[p.tip_proprietate] || p.tip_proprietate} ${p.nr_proprietate}${p.bloc ? ` (bl. ${p.bloc})` : ""}`)
                               .join(", ")
                           : "—"}
                       </td>
@@ -435,7 +435,7 @@ export default function AdminElectionDetail() {
                   <dt>Imobile</dt>
                   <dd>
                     {voteView.data.properties
-                      .map((p) => `${TIP_LABELS[p.tip_proprietate] || p.tip_proprietate} ${p.nr_proprietate}`)
+                      .map((p) => `${TIP_LABELS[p.tip_proprietate] || p.tip_proprietate} ${p.nr_proprietate}${p.bloc ? ` (bl. ${p.bloc})` : ""}`)
                       .join(", ") || "—"}
                   </dd>
                   <dt>Votat la</dt>
