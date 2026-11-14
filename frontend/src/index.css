@@ -1562,3 +1562,25 @@ h2 { font-size: 1.25rem; }
   .ballot-tpl-grid { grid-template-columns: 1fr; }
   .paper { padding: 16px 14px; }
 }
+
+/* --- collapsible admin card --------------------------------------------- */
+.collapse-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.collapse-title { font-weight: 700; font-size: 1.1rem; }
+.collapse-hint { color: var(--muted); font-size: 0.9rem; margin-left: auto; }
+.collapse-arrow { font-size: 1.1rem; color: var(--muted); transition: transform 0.2s ease; }
+.collapse-arrow-open { transform: rotate(180deg); }
+.collapse-body { margin-top: 12px; }
+.collapse-toggle:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: 6px; }

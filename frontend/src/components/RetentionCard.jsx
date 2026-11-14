@@ -10,6 +10,7 @@ export default function RetentionCard({ onChanged }) {
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [open, setOpen] = useState(false); // collapsed by default
 
   function load() {
     api.retentionPreview().then(setInfo).catch((e) => setError(e.message));
@@ -53,7 +54,24 @@ export default function RetentionCard({ onChanged }) {
 
   return (
     <div className="card retention-card">
-      <h3>Păstrarea datelor votului</h3>
+      <button
+        type="button"
+        className="collapse-toggle"
+        aria-expanded={open}
+        aria-controls="retention-body"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="collapse-title">Păstrarea datelor votului</span>
+        <span className="collapse-hint">
+          {info.old_votes} mai vechi de {info.retention_days} zile
+        </span>
+        <span className={`collapse-arrow ${open ? "collapse-arrow-open" : ""}`} aria-hidden="true">
+          ▾
+        </span>
+      </button>
+
+      {open && (
+      <div id="retention-body" className="collapse-body">
       <p className="muted">
         Voturile încheiate mai demult de {info.retention_days} zile pot fi șterse definitiv, împreună cu datele
         proprietarilor și cu buletinele PDF.
@@ -107,6 +125,8 @@ export default function RetentionCard({ onChanged }) {
 
       {status && <p className="success">{status}</p>}
       {error && <p className="error">{error}</p>}
+      </div>
+      )}
     </div>
   );
 }
