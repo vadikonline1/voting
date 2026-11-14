@@ -3,6 +3,31 @@ services:
     build: .
     image: voting-app:latest
     restart: unless-stopped
+
+    # --- resource limits: a loop, a leak or an attack cannot take the whole server -------------
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"          # at most one CPU core
+          memory: 512M         # hard memory cap; the container is restarted if it goes over
+        reservations:
+          memory: 128M
+    memswap_limit: 512M        # no swap beyond the memory cap
+    pids_limit: 200            # stops fork bombs and runaway thread creation
+    ulimits:
+      nofile:                  # open files / sockets
+        soft: 4096
+        hard: 4096
+    security_opt:
+      - no-new-privileges:true # the process cannot gain privileges
+    cap_drop:
+      - ALL                    # no extra Linux capabilities (the app listens on port 8000)
+    logging:                   # keep the logs from filling the disk
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
     environment:
       - DATABASE_URL=sqlite:////data/voting.db
       - DATA_DIR=/data
