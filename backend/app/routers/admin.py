@@ -186,6 +186,9 @@ def _election_to_out(e: models.Election) -> schemas.ElectionOut:
 
 
 def _apply_election_fields(election: models.Election, payload: schemas.ElectionIn):
+    for q in payload.questions:
+        if q.type != "section" and not (q.number or "").strip():
+            raise HTTPException(status_code=400, detail=f"Numărul întrebării „{q.text[:40]}” este obligatoriu.")
     election.title = payload.title
     election.description = payload.description
     election.nr_apc = payload.nr_apc.strip()

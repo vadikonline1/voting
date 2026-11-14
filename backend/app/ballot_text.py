@@ -16,8 +16,9 @@ GDPR_TEXT = (
 
 
 def question_letter(index: int) -> str:
-    """1 -> a, 2 -> b, ... (numbers beyond z stay numeric)."""
-    return chr(96 + index) if 1 <= index <= 26 else str(index)
+    """Default number of a question: 1, 2, 3… (restarts after each chestiune). The admin requires a number,
+    this is only the fallback for votes saved before that."""
+    return str(index)
 
 
 def public_questions(questions: list) -> list:

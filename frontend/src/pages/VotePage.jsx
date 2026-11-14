@@ -174,7 +174,7 @@ function visibleQuestions(questions, selectedTypes) {
 }
 
 /** Items of the ballot in order: a chestiune (section, label null) or a question with its label.
- * Letters restart after each chestiune. */
+ * Numbers 1, 2, 3… restart after each chestiune. */
 function labelledItems(questions) {
   const out = [];
   let counter = 0;
@@ -185,7 +185,7 @@ function labelledItems(questions) {
       continue;
     }
     counter += 1;
-    out.push({ q, label: String(q.number || "").trim() || String.fromCharCode(96 + counter) });
+    out.push({ q, label: String(q.number || "").trim() || String(counter) });
   }
   return out;
 }

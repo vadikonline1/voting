@@ -20,13 +20,13 @@ function emptySection() {
   };
 }
 
-/** Letter for the next question: counts only the questions after the last chestiune. */
-function nextLetter(questions) {
+/** Number for the next question: counts only the questions after the last chestiune (1, 2, 3…). */
+function nextNumber(questions) {
   let n = 0;
   for (const q of questions || []) {
     n = q.type === "section" ? 0 : n + 1;
   }
-  return String.fromCharCode(96 + n + 1);
+  return String(n + 1);
 }
 
 /** Questions above `qIdx` in the same chestiune only (a condition can only depend on those). */
@@ -39,19 +39,19 @@ function sameSectionParents(questions, qIdx) {
   return out;
 }
 
-/** Letter of the question at `index`, counted after the last chestiune before it. */
-function letterFor(questions, index) {
+/** Number of the question at `index`, counted after the last chestiune before it. */
+function numberFor(questions, index) {
   let n = 0;
   for (let k = 0; k < index; k++) {
     n = questions[k].type === "section" ? 0 : n + 1;
   }
-  return String.fromCharCode(96 + n + 1);
+  return String(n + 1);
 }
 
 function emptyQuestion(questions = []) {
   return {
     id: `q${Date.now()}${Math.floor(Math.random() * 1000)}`,
-    number: nextLetter(questions),
+    number: nextNumber(questions),
     text: "",
     type: "single",
     options: ["Pentru", "Împotriva"],
@@ -164,7 +164,7 @@ export default function AdminElections() {
       property_types: [...new Set((e.properties || []).map((p) => p.tip_proprietate))],
       questions: e.questions.map((q, i) => ({
         ...q,
-        number: q.number || letterFor(e.questions, i),
+        number: q.number || numberFor(e.questions, i),
         options: q.options && q.options.length ? q.options : ["Pentru", "Împotriva"],
         depends_on: q.depends_on || null,
         depends_value: q.depends_value || null,
@@ -539,14 +539,16 @@ export default function AdminElections() {
 
         <h3>Întrebări supuse votului</h3>
         <p className="muted">
-          Întrebările sunt numerotate cu litere: a, b, c… Dependențele se setează la fiecare întrebare. Opțiunile implicite sunt „Pentru” și „Împotriva”.
+          Întrebările sunt numerotate cu cifre: 1, 2, 3… (de la 1 din nou după fiecare chestiune). Numărul este
+          obligatoriu. Dependențele se setează la fiecare întrebare. Opțiunile implicite sunt „Pentru” și „Împotriva”.
         </p>
         {editing.questions.map((q, qIdx) => {
           if (q.type === "section") {
+            const chestiuneNo = editing.questions.slice(0, qIdx + 1).filter((x) => x.type === "section").length;
             return (
               <div key={q.id} className="section-editor">
                 <div className="section-editor-head">
-                  <span className="section-editor-title">Chestiunea propusă spre vot</span>
+                  <span className="section-editor-title">Chestiunea propusă spre vot nr. {chestiuneNo}</span>
                   <button type="button" className="btn-link btn-danger" onClick={() => removeQuestion(qIdx)}>
                     Șterge chestiunea
                   </button>
@@ -595,7 +597,7 @@ export default function AdminElections() {
                 <p className="muted section-hint">
                   Dacă alegeți un tip, chestiunea și întrebările ei apar votantului doar dacă a bifat acel tip de imobil.
                 </p>
-                <p className="muted section-hint">Întrebările de sub această chestiune sunt numerotate a, b, c…</p>
+                <p className="muted section-hint">Întrebările de sub această chestiune sunt numerotate 1, 2, 3… (de la 1 din nou)</p>
               </div>
             );
           }
@@ -633,8 +635,8 @@ export default function AdminElections() {
 
               <div className="qe-grid">
                 <label className="field qe-letter">
-                  <span>Literă</span>
-                  <input name="AdminElections-637" value={q.number} onChange={(e) => updateQuestion(qIdx, { number: e.target.value })} placeholder="a" />
+                  <span>Număr *</span>
+                  <input name="AdminElections-637" value={q.number} onChange={(e) => updateQuestion(qIdx, { number: e.target.value })} placeholder="1" required />
                 </label>
                 <label className="field qe-text">
                   <span>Textul întrebării</span>
