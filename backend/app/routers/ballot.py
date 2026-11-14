@@ -227,9 +227,10 @@ def _clean_properties(election: models.Election, items: list) -> list[dict]:
         if not (1 <= len(nr) <= 30) or not _PROP_RE.match(nr):
             raise HTTPException(status_code=400, detail=f"Numărul imobilului ({tip}) nu este valid.")
         # each property has its own block (the blocks can differ between the owner's properties)
+        # the block is mandatory for every property (picked from the list, or typed when there is no list)
         bloc = _clean_bloc(election, item.bloc)
-        if blocks_required(election) and not bloc:
-            raise HTTPException(status_code=400, detail=f"Selectați blocul pentru imobilul {tip} {nr}.")
+        if not bloc:
+            raise HTTPException(status_code=400, detail=f"Completați blocul pentru imobilul {tip} {nr}.")
         if not any(c["tip_proprietate"] == tip and c["nr_proprietate"] == nr and c["bloc"] == bloc for c in chosen):
             chosen.append({"tip_proprietate": tip, "nr_proprietate": nr, "bloc": bloc})
     if not chosen:
@@ -265,11 +266,6 @@ def _clean_bloc(election: models.Election, bloc: str) -> str:
     if len(value) > 60:
         raise HTTPException(status_code=400, detail="Blocul este prea lung (maximum 60 de caractere).")
     return value
-
-
-def blocks_required(election: models.Election) -> bool:
-    """When the admin listed the blocks, every property must name one of them."""
-    return bool(election.blocks)
 
 
 def _check_not_voted(db: Session, election: models.Election, adresa: str, properties: list[dict]) -> None:

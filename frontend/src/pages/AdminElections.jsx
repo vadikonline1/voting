@@ -359,7 +359,7 @@ export default function AdminElections() {
             placeholder={"Bl. 1\nBl. 2\nBl. 3"}
           />
           <small className="muted">
-            Dacă lăsați lista goală, votantul scrie singur blocul său (opțional). Verificarea „imobil deja votat” se
+            Dacă lăsați lista goală, votantul scrie singur blocul său (obligatoriu). Verificarea „imobil deja votat” se
             face pe adresă + bloc + tip + număr.
           </small>
         </label>

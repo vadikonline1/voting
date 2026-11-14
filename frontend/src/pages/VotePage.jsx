@@ -333,11 +333,10 @@ export default function VotePage() {
     if (addresses.length > 1 && !adresa) {
       missing.push("Adresa condominiului: selectați adresa din listă.");
     }
-    if (blocks.length > 0) {
-      selectedProps
-        .filter((p) => !p.bloc)
-        .forEach((p) => missing.push(`Blocul pentru imobilul ${tipLabel(p.tip_proprietate).toLowerCase()} ${p.nr_proprietate}: selectați din listă.`));
-    }
+    // the block is mandatory for every property
+    selectedProps
+      .filter((p) => !p.bloc)
+      .forEach((p) => missing.push(`Blocul imobilului ${tipLabel(p.tip_proprietate).toLowerCase()} ${p.nr_proprietate}: completați blocul.`));
     if (!gdpr) missing.push("Acordul GDPR: bifați căsuța de acceptare a prelucrării datelor.");
     if (ballot.require_signature && (!sigRef.current || sigRef.current.isEmpty())) {
       missing.push("Semnătura olografă: semnați în câmpul de mai jos.");
@@ -571,7 +570,7 @@ export default function VotePage() {
                           <div className="property-pair">
                           <div className="property-col">
                           <label className="property-field-label" htmlFor={`prop-${tip}-${idx}`}>
-                            Numărul imobilului{rows.length > 1 ? ` ${idx + 1}` : ""}
+                            Numărul imobilului *{rows.length > 1 ? ` ${idx + 1}` : ""}
                           </label>
                           <div className="property-input-row">
                             <input
@@ -593,7 +592,7 @@ export default function VotePage() {
                           </div>
                           <div className="property-col">
                           <label className="property-field-label" htmlFor={`prop-${tip}-${idx}-bloc`}>
-                            Blocul
+                            Blocul *
                           </label>
                           {blocks.length > 0 ? (
                             <select
@@ -616,7 +615,7 @@ export default function VotePage() {
                               value={item.bloc || ""}
                               onChange={(e) => updateProperty(tip, idx, { bloc: e.target.value })}
                               maxLength={60}
-                              placeholder="ex. Bl. E (dacă există)"
+                              placeholder="ex. Bl. E"
                               autoComplete="off"
                             />
                           )}
