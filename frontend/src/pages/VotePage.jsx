@@ -22,6 +22,7 @@ const FIELD_LABELS = {
   nume_prenume: "Nume și prenume",
   phone: "Telefon",
   str_locatar: "Adresa de corespondență",
+  adresa: "Blocul / adresa",
   email: "Adresa de email",
   properties: "Imobile",
 };
@@ -195,6 +196,8 @@ export default function VotePage() {
   const [error, setError] = useState("");
   const [answers, setAnswers] = useState({});
   const [voter, setVoter] = useState(EMPTY_VOTER);
+  // block / address of the APC the owner belongs to (asked only when the APC has several)
+  const [adresa, setAdresa] = useState("");
   // property selection: types ticked by the owner, and the numbers typed for each type
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [numbers, setNumbers] = useState({}); // { apartament: ["12", "14"], ... }
@@ -234,6 +237,7 @@ export default function VotePage() {
   }, [ballot]);
 
   const allowMultiple = ballot?.allow_multiple_properties !== false;
+  const addresses = ballot?.adrese || [];
 
   // the properties the owner declared: each ticked type with its typed numbers (non-empty, unique)
   const selectedProps = useMemo(() => {
@@ -316,6 +320,9 @@ export default function VotePage() {
     const missing = Object.entries(FIELD_LABELS)
       .filter(([key]) => errors[key])
       .map(([key]) => `${FIELD_LABELS[key]}: ${errors[key]}`);
+    if (addresses.length > 1 && !adresa) {
+      missing.push("Blocul / adresa: selectați din ce bloc faceți parte.");
+    }
     if (!gdpr) missing.push("Acordul GDPR: bifați căsuța de acceptare a prelucrării datelor.");
     if (ballot.require_signature && (!sigRef.current || sigRef.current.isEmpty())) {
       missing.push("Semnătura olografă: semnați în câmpul de mai jos.");
@@ -335,7 +342,7 @@ export default function VotePage() {
       setError("");
       // scroll to the first field that needs attention
       setTimeout(() => {
-        const target = document.querySelector(".field-invalid, .question-missing, .gdpr-field, .property-card-missing");
+        const target = document.querySelector(".field-invalid, .question-missing, .gdpr-field, .property-card-missing, .address-choice-missing");
         if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 0);
       return;
@@ -347,6 +354,7 @@ export default function VotePage() {
       const payload = {
         answers: effective,
         voter: cleanVoter(voter),
+        adresa: addresses.length > 1 ? adresa : addresses[0] || "",
         properties: selectedProps.map((p) => ({
           tip_proprietate: p.tip_proprietate,
           nr_proprietate: p.nr_proprietate,
@@ -499,6 +507,23 @@ export default function VotePage() {
 
         <section className="voter-section property-section">
           <h2 className="section-title">Imobilele pe care le dețineți *</h2>
+          {addresses.length > 1 && (
+            <fieldset className={`address-choice ${!adresa && summary.length ? "address-choice-missing" : ""}`}>
+              <legend>Din ce bloc (adresă) faceți parte? *</legend>
+              {addresses.map((a) => (
+                <label key={a} className={`address-option ${adresa === a ? "address-option-on" : ""}`}>
+                  <input
+                    type="radio"
+                    name="adresa"
+                    value={a}
+                    checked={adresa === a}
+                    onChange={() => setAdresa(a)}
+                  />
+                  <span>{a}</span>
+                </label>
+              ))}
+            </fieldset>
+          )}
           <p className="property-help">
             Apăsați pe tipul imobilului pe care îl dețineți, apoi scrieți numărul lui.
             {allowMultiple

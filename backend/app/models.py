@@ -76,6 +76,10 @@ class Election(Base):
     # True: an owner may vote several properties in one ballot. False: only one property per ballot.
     allow_multiple_properties = Column(Boolean, default=True)
 
+    # Blocks / addresses of this APC (one APC can have several buildings). The owner picks one on the
+    # ballot when there are two or more. ["str. A. Doga 13/7", "str. Cornești 7", ...]
+    adrese_json = Column(Text, default="[]")
+
     # JSON-encoded list of decisions (Hotărâri) to vote on:
     # [{"id": "q1", "text": "...", "type": "single", "options": ["Da/Pro","Nu/Contra"], "required": true}]
     questions_json = Column(Text, default="[]")
@@ -107,6 +111,15 @@ class Election(Base):
     tokens = relationship("VoterToken", back_populates="election", cascade="all, delete-orphan")
     votes = relationship("Vote", back_populates="election", cascade="all, delete-orphan")
 
+    @property
+    def addresses(self) -> list[str]:
+        """The blocks / addresses of the APC, in the order the admin typed them."""
+        try:
+            items = json.loads(self.adrese_json or "[]")
+        except (ValueError, TypeError):
+            return []
+        return [str(i).strip() for i in items if str(i).strip()] if isinstance(items, list) else []
+
 
 class VoterToken(Base):
     __tablename__ = "voter_tokens"
@@ -125,6 +138,8 @@ class VoterToken(Base):
     tip_proprietate = Column(String, default="apartament")
     nr_proprietate = Column(String, default="")
     properties_json = Column(Text, default="[]")
+    # The block / address the owner chose (empty when the APC has a single address)
+    adresa = Column(String, default="")
 
     created_at = Column(DateTime, default=utcnow)
     voted_at = Column(DateTime, nullable=True)
@@ -167,17 +182,18 @@ class VoterToken(Base):
 
 
 class VoterProperty(Base):
-    """One property covered by a vote. The unique constraint guarantees that the same
-    property (type + number) cannot be voted twice within the same election."""
+    """One property covered by a vote. The unique constraint guarantees that the same property
+    (block/address + type + number) cannot be voted twice within the same election."""
     __tablename__ = "voter_properties"
     __table_args__ = (
-        UniqueConstraint("election_id", "tip_proprietate", "nr_proprietate",
+        UniqueConstraint("election_id", "adresa", "tip_proprietate", "nr_proprietate",
                          name="uq_voter_property_election"),
     )
 
     id = Column(Integer, primary_key=True)
     election_id = Column(Integer, ForeignKey("elections.id"), nullable=False)
     token_id = Column(String, ForeignKey("voter_tokens.id"), nullable=False)
+    adresa = Column(String, nullable=False, default="")  # block / address ("" = single address)
     tip_proprietate = Column(String, nullable=False)  # apartament | debara | parcare
     nr_proprietate = Column(String, nullable=False)
 

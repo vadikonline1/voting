@@ -234,13 +234,28 @@ def _clean_properties(election: models.Election, items: list) -> list[dict]:
     return chosen
 
 
-def _check_not_voted(db: Session, election: models.Election, properties: list[dict]) -> None:
-    """Refuse properties already voted in this election and show the masked email used for it."""
+def _clean_adresa(election: models.Election, adresa: str) -> str:
+    """The block / address the owner chose. Required when the APC has several; with a single
+    address it is that address, and without any it stays empty."""
+    addresses = election.addresses
+    if len(addresses) > 1:
+        value = re.sub(r"\s+", " ", (adresa or "").strip()).lower()
+        match = next((a for a in addresses if a.lower() == value), None)
+        if not match:
+            raise HTTPException(status_code=400, detail="Selectați blocul (adresa) din care faceți parte.")
+        return match
+    return addresses[0] if addresses else ""
+
+
+def _check_not_voted(db: Session, election: models.Election, adresa: str, properties: list[dict]) -> None:
+    """Refuse properties already voted in this election (same block, type and number) and show
+    the masked email used for it."""
     for p in properties:
         existing = (
             db.query(models.VoterProperty)
             .filter(
                 models.VoterProperty.election_id == election.id,
+                models.VoterProperty.adresa == adresa,
                 models.VoterProperty.tip_proprietate == p["tip_proprietate"],
                 models.VoterProperty.nr_proprietate == p["nr_proprietate"],
             )
@@ -249,10 +264,11 @@ def _check_not_voted(db: Session, election: models.Election, properties: list[di
         if existing:
             previous = db.query(models.VoterToken).get(existing.token_id)
             masked = mask_email(previous.email) if previous and previous.email else "(fără email)"
+            where = f" din {adresa}" if adresa else ""
             raise HTTPException(
                 status_code=409,
                 detail=(
-                    f"Imobilul {p['tip_proprietate']} cu nr {p['nr_proprietate']} a fost deja votat. "
+                    f"Imobilul {p['tip_proprietate']} cu nr {p['nr_proprietate']}{where} a fost deja votat. "
                     f"Verificați emailul {masked}."
                 ),
             )
@@ -342,6 +358,7 @@ def get_apc_ballot(nr_apc: str, db: Session = Depends(get_db)):
         gdpr_text=GDPR_TEXT,
         properties=[schemas.PropertyItem(tip_proprietate=t, nr_proprietate="") for t in _election_property_types(election)],
         allow_multiple_properties=bool(election.allow_multiple_properties),
+        adrese=election.addresses,
         chestiune=election.chestiune or "",
         questions=public_questions(json.loads(election.questions_json or "[]")),
         require_signature=election.require_signature,
@@ -363,8 +380,9 @@ def submit_apc_vote(nr_apc: str, payload: schemas.VoteSubmission, request: Reque
         )
 
     voter_data = _clean_voter(payload.voter)
+    adresa = _clean_adresa(election, payload.adresa)
     properties = _clean_properties(election, payload.properties)
-    _check_not_voted(db, election, properties)
+    _check_not_voted(db, election, adresa, properties)
 
     questions = public_questions(json.loads(election.questions_json or "[]"))
     property_types = frozenset(p["tip_proprietate"] for p in properties)
@@ -393,6 +411,7 @@ def submit_apc_vote(nr_apc: str, payload: schemas.VoteSubmission, request: Reque
         tip_proprietate=properties[0]["tip_proprietate"],
         nr_proprietate=properties[0]["nr_proprietate"],
         properties_json=json.dumps(properties, ensure_ascii=False),
+        adresa=adresa,
         voted_at=submitted_at,
     )
     db.add(token)
@@ -400,7 +419,7 @@ def submit_apc_vote(nr_apc: str, payload: schemas.VoteSubmission, request: Reque
         db.flush()  # assigns token.id, needed for file names
         for p in properties:
             db.add(models.VoterProperty(
-                election_id=election.id, token_id=token.id,
+                election_id=election.id, token_id=token.id, adresa=adresa,
                 tip_proprietate=p["tip_proprietate"], nr_proprietate=p["nr_proprietate"],
             ))
 

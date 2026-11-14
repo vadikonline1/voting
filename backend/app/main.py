@@ -49,10 +49,12 @@ def _migrate_sqlite():
             "properties_json": "TEXT DEFAULT '[]'",
             "chestiune": "TEXT DEFAULT ''",
             "allow_multiple_properties": "BOOLEAN DEFAULT 1",
+            "adrese_json": "TEXT DEFAULT '[]'",
         },
         "voter_tokens": {
             "tip_proprietate": "VARCHAR DEFAULT 'apartament'",
             "properties_json": "TEXT DEFAULT '[]'",
+            "adresa": "VARCHAR DEFAULT ''",
         },
         "votes": {
             "gdpr_consent_at": "DATETIME",
@@ -67,6 +69,19 @@ def _migrate_sqlite():
             for name, ddl in columns.items():
                 if name not in existing:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
+
+        # voter_properties: the unique key becomes (election, block, type, number). SQLite cannot
+        # change a constraint in place, so the table is rebuilt once. Without this, the same
+        # number in two blocks of one APC would be refused.
+        vp_columns = {row[1] for row in conn.execute(text("PRAGMA table_info(voter_properties)"))}
+        if vp_columns and "adresa" not in vp_columns:
+            conn.execute(text("ALTER TABLE voter_properties RENAME TO voter_properties_old"))
+            models.VoterProperty.__table__.create(bind=conn)
+            conn.execute(text(
+                "INSERT INTO voter_properties (id, election_id, token_id, adresa, tip_proprietate, nr_proprietate) "
+                "SELECT id, election_id, token_id, '', tip_proprietate, nr_proprietate FROM voter_properties_old"
+            ))
+            conn.execute(text("DROP TABLE voter_properties_old"))
 
         # Existing elections predate the public dashboard: give each one a random identifier.
         rows = conn.execute(

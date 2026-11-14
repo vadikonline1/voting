@@ -47,6 +47,7 @@ class ElectionIn(BaseModel):
     properties: List[PropertyItem] = Field(default_factory=list)
     allow_multiple_properties: bool = True
     chestiune: str = ""  # Chestiunea propusă spre vot
+    adrese: List[str] = Field(default_factory=list)  # blocurile / adresele APC (una pe rând în admin)
     questions: List[Question] = Field(default_factory=list)
     is_active: bool = True
     require_signature: bool = True
@@ -98,6 +99,7 @@ class ApcBallotOut(BaseModel):
     gdpr_text: str
     properties: List[PropertyItem]
     allow_multiple_properties: bool
+    adrese: List[str] = Field(default_factory=list)  # blocurile / adresele; votantul alege una dacă sunt mai multe
     chestiune: str = ""
     questions: List[Question]
     require_signature: bool
@@ -108,6 +110,7 @@ class ApcBallotOut(BaseModel):
 class VoteSubmission(BaseModel):
     answers: Dict[str, Any] = Field(default_factory=dict)
     voter: VoterData = Field(default_factory=VoterData)
+    adresa: str = ""  # blocul / adresa aleasă de votant (obligatorie dacă APC are mai multe)
     properties: List[PropertyItem] = Field(default_factory=list)  # imobilele votate de proprietar
     gdpr_consent: bool = False
     signature_png_base64: Optional[str] = None

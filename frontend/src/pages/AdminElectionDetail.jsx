@@ -169,6 +169,7 @@ export default function AdminElectionDetail() {
                 <tr>
                   <th>Nume</th>
                   <th>Telefon</th>
+                  <th>Bloc / adresă</th>
                   <th>Imobile votate</th>
                   <th>Email</th>
                   <th>A votat?</th>
@@ -181,6 +182,7 @@ export default function AdminElectionDetail() {
                     <tr key={r.token_id}>
                       <td>{r.nume_prenume || "—"}</td>
                       <td>{r.phone || "—"}</td>
+                      <td>{r.adresa || "—"}</td>
                       <td>
                         {r.properties && r.properties.length
                           ? r.properties

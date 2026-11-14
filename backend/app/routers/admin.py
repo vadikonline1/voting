@@ -133,6 +133,20 @@ def _ensure_single_active(db: Session, payload: schemas.ElectionIn, election_id:
         )
 
 
+def _clean_addresses(items: list[str]) -> list[str]:
+    """Blocks / addresses of the APC: trimmed, without empty lines or duplicates, order kept."""
+    cleaned: list[str] = []
+    for item in items or []:
+        value = re.sub(r"\s+", " ", (item or "").strip())
+        if not value:
+            continue
+        if len(value) > 250:
+            raise HTTPException(status_code=400, detail=f"Adresa „{value[:40]}…” este prea lungă (maximum 250 de caractere).")
+        if value.lower() not in [c.lower() for c in cleaned]:
+            cleaned.append(value)
+    return cleaned
+
+
 def _election_to_out(e: models.Election) -> schemas.ElectionOut:
     return schemas.ElectionOut(
         id=e.id,
@@ -147,6 +161,7 @@ def _election_to_out(e: models.Election) -> schemas.ElectionOut:
         properties=[schemas.PropertyItem(tip_proprietate=p["tip_proprietate"]) for p in _election_properties(e)],
         allow_multiple_properties=bool(e.allow_multiple_properties),
         chestiune=e.chestiune or "",
+        adrese=e.addresses,
         vote_url=_vote_url(e.nr_apc),
         questions=json.loads(e.questions_json or "[]"),
         is_active=e.is_active,
@@ -173,6 +188,7 @@ def _apply_election_fields(election: models.Election, payload: schemas.ElectionI
     election.tip_proprietate = payload.tip_proprietate
     election.allow_multiple_properties = bool(payload.allow_multiple_properties)
     election.chestiune = payload.chestiune or ""
+    election.adrese_json = json.dumps(_clean_addresses(payload.adrese), ensure_ascii=False)
     election.properties_json = json.dumps(
         _property_types_from_payload(payload.properties),
         ensure_ascii=False,
@@ -295,6 +311,7 @@ def checklist(election_id: int, username: str = Depends(require_admin), db: Sess
             "phone": t.phone,
             "str_locatar": t.str_locatar,
             "email": t.email,
+            "adresa": t.adresa or "",
             "properties": t.properties,
             "has_voted": t.has_voted,
             "voted_at": t.voted_at,
@@ -323,10 +340,10 @@ def export_tokens_csv(election_id: int, username: str = Depends(require_admin), 
     )
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["nume_prenume", "phone", "str_locatar", "email", "imobile", "has_voted", "voted_at"])
+    writer.writerow(["nume_prenume", "phone", "str_locatar", "email", "bloc_adresa", "imobile", "has_voted", "voted_at"])
     for t in tokens:
         writer.writerow([
-            t.nume_prenume, t.phone, t.str_locatar, t.email,
+            t.nume_prenume, t.phone, t.str_locatar, t.email, t.adresa or "",
             "; ".join(f"{p['tip_proprietate']} {p['nr_proprietate']}" for p in t.properties),
             "DA" if t.has_voted else "NU", t.voted_at.isoformat() if t.voted_at else "",
         ])

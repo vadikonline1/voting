@@ -67,6 +67,7 @@ function emptyElection() {
     description: "",
     nr_apc: "",
     str_apc: "",
+    adrese: [],
     oras: "",
     start_date_vot: "",
     end_date_vot: "",
@@ -289,6 +290,20 @@ export default function AdminElections() {
             <input value={editing.oras} onChange={(e) => setEditing({ ...editing, oras: e.target.value })} placeholder="Chișinău" required />
           </label>
         </div>
+
+        <label className="field">
+          <span>Blocuri / adrese ale APC (una pe rând)</span>
+          <textarea
+            rows={3}
+            value={(editing.adrese || []).join("\n")}
+            onChange={(e) => setEditing({ ...editing, adrese: e.target.value.split("\n") })}
+            placeholder={"str. A. Doga 13/7\nstr. Cornești 7\nstr. Cornești 11A"}
+          />
+          <small className="muted">
+            Dacă APC are mai multe blocuri, votantul alege din ce bloc face parte. Cu o singură adresă, lista nu apare
+            la vot. Verificarea „imobil deja votat” se face pe bloc + tip + număr.
+          </small>
+        </label>
 
         <div className="field-row">
           <label className="field">

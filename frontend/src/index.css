@@ -1213,3 +1213,41 @@ h2 { font-size: 1.25rem; }
   .admin-table th, .admin-table td { padding: 10px 10px; }
   .admin-table { font-size: 0.88rem; }
 }
+
+/* --- Vote page: block / address of the owner (APC with several buildings) --- */
+.address-choice {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 0 0 18px;
+  display: grid;
+  gap: 8px;
+}
+.address-choice legend {
+  font-weight: 600;
+  padding: 0 6px;
+}
+.address-choice-missing {
+  border-color: var(--danger);
+  background: #fff5f5;
+}
+.address-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  background: #fff;
+}
+.address-option-on {
+  border-color: var(--primary);
+  background: #f2f7ff;
+}
+.address-option input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  flex: 0 0 auto;
+}

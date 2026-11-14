@@ -80,11 +80,14 @@ def build_ballot_texts(election, voter) -> dict:
     else:
         props_text = f"{tip_proprietate} cu nr {PLACEHOLDER}"
 
+    # the block / address the owner chose on the ballot; the APC address when there is only one
+    adresa = (voter.adresa if voter else "") or str_apc
+
     paragraph2 = (
         f"Dl/Dna {nume_prenume}, tel. {phone}, adresa de corespondență poștală "
         f"{str_locatar}, adresa electronică {email}, în calitate de membru al "
         f"Asociației de Proprietari din Condominiu nr. {nr_apc}, proprietar al unității (bunului "
-        f"imobil) din: {str_apc}, {props_text}, îmi exprim votul "
+        f"imobil) din: {adresa}, {props_text}, îmi exprim votul "
         "(Da/Pro, Nu/Contra) pentru adoptarea următoarelor Hotărâri:"
     )
 
