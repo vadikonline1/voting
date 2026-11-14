@@ -1461,3 +1461,17 @@ h2 { font-size: 1.25rem; }
 @media (max-width: 720px) {
   .retention-row { flex-direction: column; align-items: stretch; }
 }
+
+/* --- vote page: block next to the property number (inline on wide screens) --- */
+.property-pair {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.property-col {
+  flex: 1 1 220px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}

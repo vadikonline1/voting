@@ -568,6 +568,8 @@ export default function VotePage() {
                     <div className="property-fields">
                       {rows.map((item, idx) => (
                         <div key={idx} className="property-field">
+                          <div className="property-pair">
+                          <div className="property-col">
                           <label className="property-field-label" htmlFor={`prop-${tip}-${idx}`}>
                             Numărul imobilului{rows.length > 1 ? ` ${idx + 1}` : ""}
                           </label>
@@ -588,6 +590,8 @@ export default function VotePage() {
                               </button>
                             )}
                           </div>
+                          </div>
+                          <div className="property-col">
                           <label className="property-field-label" htmlFor={`prop-${tip}-${idx}-bloc`}>
                             Blocul
                           </label>
@@ -616,6 +620,8 @@ export default function VotePage() {
                               autoComplete="off"
                             />
                           )}
+                          </div>
+                          </div>
                         </div>
                       ))}
                       {allowMultiple && (
