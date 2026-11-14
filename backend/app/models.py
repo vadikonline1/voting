@@ -79,6 +79,8 @@ class Election(Base):
     # Blocks / addresses of this APC (one APC can have several buildings). The owner picks one on the
     # ballot when there are two or more. ["str. A. Doga 13/7", "str. Cornești 7", ...]
     adrese_json = Column(Text, default="[]")
+    # Blocks of the building (bl_apc), one per line in the admin. Empty = the owner types the block himself.
+    blocuri_json = Column(Text, default="[]")
 
     # JSON-encoded list of decisions (Hotărâri) to vote on:
     # [{"id": "q1", "text": "...", "type": "single", "options": ["Da/Pro","Nu/Contra"], "required": true}]
@@ -120,11 +122,20 @@ class Election(Base):
     @property
     def addresses(self) -> list[str]:
         """The blocks / addresses of the APC, in the order the admin typed them."""
-        try:
-            items = json.loads(self.adrese_json or "[]")
-        except (ValueError, TypeError):
-            return []
-        return [str(i).strip() for i in items if str(i).strip()] if isinstance(items, list) else []
+        return _json_list(self.adrese_json)
+
+    @property
+    def blocks(self) -> list[str]:
+        """The blocks (bl_apc) the owner can pick from. Empty = the owner writes the block himself."""
+        return _json_list(self.blocuri_json)
+
+
+def _json_list(raw: str | None) -> list[str]:
+    try:
+        items = json.loads(raw or "[]")
+    except (ValueError, TypeError):
+        return []
+    return [str(i).strip() for i in items if str(i).strip()] if isinstance(items, list) else []
 
 
 class VoterToken(Base):
@@ -146,6 +157,8 @@ class VoterToken(Base):
     properties_json = Column(Text, default="[]")
     # The block / address the owner chose (empty when the APC has a single address)
     adresa = Column(String, default="")
+    # The block (bl_apc) the owner chose or typed ("" when not given)
+    bloc = Column(String, default="")
 
     created_at = Column(DateTime, default=utcnow)
     voted_at = Column(DateTime, nullable=True)
@@ -192,14 +205,15 @@ class VoterProperty(Base):
     (block/address + type + number) cannot be voted twice within the same election."""
     __tablename__ = "voter_properties"
     __table_args__ = (
-        UniqueConstraint("election_id", "adresa", "tip_proprietate", "nr_proprietate",
+        UniqueConstraint("election_id", "adresa", "bloc", "tip_proprietate", "nr_proprietate",
                          name="uq_voter_property_election"),
     )
 
     id = Column(Integer, primary_key=True)
     election_id = Column(Integer, ForeignKey("elections.id"), nullable=False)
     token_id = Column(String, ForeignKey("voter_tokens.id"), nullable=False)
-    adresa = Column(String, nullable=False, default="")  # block / address ("" = single address)
+    adresa = Column(String, nullable=False, default="")  # address of the condominium ("" = single address)
+    bloc = Column(String, nullable=False, default="")    # block ("" = none given)
     tip_proprietate = Column(String, nullable=False)  # apartament | debara | parcare
     nr_proprietate = Column(String, nullable=False)
 

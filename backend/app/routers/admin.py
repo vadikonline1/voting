@@ -163,6 +163,7 @@ def _election_to_out(e: models.Election) -> schemas.ElectionOut:
         allow_multiple_properties=bool(e.allow_multiple_properties),
         chestiune=e.chestiune or "",
         adrese=e.addresses,
+        blocuri=e.blocks,
         vote_url=_vote_url(e.nr_apc),
         extend_url=extend_url(e),
         questions=json.loads(e.questions_json or "[]"),
@@ -183,14 +184,17 @@ def _apply_election_fields(election: models.Election, payload: schemas.ElectionI
     election.title = payload.title
     election.description = payload.description
     election.nr_apc = payload.nr_apc.strip()
-    election.str_apc = payload.str_apc
+    # The addresses of the condominium are kept as a list; str_apc is their joined text (title, PDF, emails)
+    addresses = _clean_addresses(payload.adrese)
+    election.adrese_json = json.dumps(addresses, ensure_ascii=False)
+    election.blocuri_json = json.dumps(_clean_addresses(payload.blocuri), ensure_ascii=False)
+    election.str_apc = "; ".join(addresses) if addresses else (payload.str_apc or "").strip()
     election.oras = payload.oras
     election.start_date_vot = payload.start_date_vot
     election.end_date_vot = payload.end_date_vot
     election.tip_proprietate = payload.tip_proprietate
     election.allow_multiple_properties = bool(payload.allow_multiple_properties)
     election.chestiune = payload.chestiune or ""
-    election.adrese_json = json.dumps(_clean_addresses(payload.adrese), ensure_ascii=False)
     election.properties_json = json.dumps(
         _property_types_from_payload(payload.properties),
         ensure_ascii=False,
@@ -314,6 +318,7 @@ def checklist(election_id: int, username: str = Depends(require_admin), db: Sess
             "str_locatar": t.str_locatar,
             "email": t.email,
             "adresa": t.adresa or "",
+            "bloc": t.bloc or "",
             "properties": t.properties,
             "has_voted": t.has_voted,
             "voted_at": t.voted_at,
@@ -344,10 +349,10 @@ def export_tokens_csv(election_id: int, username: str = Depends(require_admin), 
     )
     buf = io.StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["nume_prenume", "phone", "str_locatar", "email", "bloc_adresa", "imobile", "has_voted", "voted_at"])
+    writer.writerow(["nume_prenume", "phone", "str_locatar", "email", "adresa", "bloc", "imobile", "has_voted", "voted_at"])
     for t in tokens:
         writer.writerow([
-            t.nume_prenume, t.phone, t.str_locatar, t.email, t.adresa or "",
+            t.nume_prenume, t.phone, t.str_locatar, t.email, t.adresa or "", t.bloc or "",
             "; ".join(f"{p['tip_proprietate']} {p['nr_proprietate']}" for p in t.properties),
             "DA" if t.has_voted else "NU", t.voted_at.isoformat() if t.voted_at else "",
         ])

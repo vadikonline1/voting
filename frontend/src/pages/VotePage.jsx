@@ -22,7 +22,8 @@ const FIELD_LABELS = {
   nume_prenume: "Nume și prenume",
   phone: "Telefon",
   str_locatar: "Adresa de corespondență",
-  adresa: "Blocul / adresa",
+  adresa: "Adresa condominiului",
+  bloc: "Blocul",
   email: "Adresa de email",
   properties: "Imobile",
 };
@@ -198,6 +199,8 @@ export default function VotePage() {
   const [voter, setVoter] = useState(EMPTY_VOTER);
   // block / address of the APC the owner belongs to (asked only when the APC has several)
   const [adresa, setAdresa] = useState("");
+  // block of the building: picked from the list the APC set, or typed by the owner when there is no list
+  const [bloc, setBloc] = useState("");
   // property selection: types ticked by the owner, and the numbers typed for each type
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [numbers, setNumbers] = useState({}); // { apartament: ["12", "14"], ... }
@@ -238,6 +241,7 @@ export default function VotePage() {
 
   const allowMultiple = ballot?.allow_multiple_properties !== false;
   const addresses = ballot?.adrese || [];
+  const blocks = ballot?.blocuri || [];
 
   // the properties the owner declared: each ticked type with its typed numbers (non-empty, unique)
   const selectedProps = useMemo(() => {
@@ -321,7 +325,10 @@ export default function VotePage() {
       .filter(([key]) => errors[key])
       .map(([key]) => `${FIELD_LABELS[key]}: ${errors[key]}`);
     if (addresses.length > 1 && !adresa) {
-      missing.push("Blocul / adresa: selectați din ce bloc faceți parte.");
+      missing.push("Adresa condominiului: selectați adresa din listă.");
+    }
+    if (blocks.length > 0 && !bloc) {
+      missing.push("Blocul: selectați blocul din listă.");
     }
     if (!gdpr) missing.push("Acordul GDPR: bifați căsuța de acceptare a prelucrării datelor.");
     if (ballot.require_signature && (!sigRef.current || sigRef.current.isEmpty())) {
@@ -355,6 +362,7 @@ export default function VotePage() {
         answers: effective,
         voter: cleanVoter(voter),
         adresa: addresses.length > 1 ? adresa : addresses[0] || "",
+        bloc: blocks.length > 0 ? bloc : bloc.trim(),
         properties: selectedProps.map((p) => ({
           tip_proprietate: p.tip_proprietate,
           nr_proprietate: p.nr_proprietate,
@@ -509,7 +517,7 @@ export default function VotePage() {
           <h2 className="section-title">Imobilele pe care le dețineți *</h2>
           {addresses.length > 1 && (
             <fieldset className={`address-choice ${!adresa && summary.length ? "address-choice-missing" : ""}`}>
-              <legend>Din ce bloc (adresă) faceți parte? *</legend>
+              <legend>Adresa condominiului în care se află imobilele *</legend>
               {addresses.map((a) => (
                 <label key={a} className={`address-option ${adresa === a ? "address-option-on" : ""}`}>
                   <input
@@ -523,6 +531,28 @@ export default function VotePage() {
                 </label>
               ))}
             </fieldset>
+          )}
+          {blocks.length > 0 ? (
+            <fieldset className={`address-choice ${!bloc && summary.length ? "address-choice-missing" : ""}`}>
+              <legend>Blocul *</legend>
+              {blocks.map((b) => (
+                <label key={b} className={`address-option ${bloc === b ? "address-option-on" : ""}`}>
+                  <input type="radio" name="bloc" value={b} checked={bloc === b} onChange={() => setBloc(b)} />
+                  <span>{b}</span>
+                </label>
+              ))}
+            </fieldset>
+          ) : (
+            <label className="field block-free">
+              <span>Blocul (scrieți dacă există)</span>
+              <input
+                value={bloc}
+                onChange={(e) => setBloc(e.target.value)}
+                maxLength={60}
+                placeholder="ex. Bl. 2"
+                autoComplete="off"
+              />
+            </label>
           )}
           <p className="property-help">
             Apăsați pe tipul imobilului pe care îl dețineți, apoi scrieți numărul lui.

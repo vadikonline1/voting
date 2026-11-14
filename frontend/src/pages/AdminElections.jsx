@@ -68,6 +68,7 @@ function emptyElection() {
     nr_apc: "",
     str_apc: "",
     adrese: [],
+    blocuri: [],
     oras: "",
     start_date_vot: "",
     end_date_vot: "",
@@ -159,6 +160,8 @@ export default function AdminElections() {
   function startEdit(e) {
     setEditing({
       ...e,
+      // votes saved before the address list existed: the single address becomes the first line
+      adrese: e.adrese && e.adrese.length ? e.adrese : e.str_apc ? [e.str_apc] : [],
       start_date_vot: toInputDate(e.start_date_vot),
       end_date_vot: toInputDate(e.end_date_vot),
       property_types: [...new Set((e.properties || []).map((p) => p.tip_proprietate))],
@@ -326,26 +329,37 @@ export default function AdminElections() {
             <input value={editing.nr_apc} onChange={(e) => setEditing({ ...editing, nr_apc: e.target.value })} placeholder="12" required />
           </label>
           <label className="field">
-            <span>Adresa condominiului (str_apc)</span>
-            <input value={editing.str_apc} onChange={(e) => setEditing({ ...editing, str_apc: e.target.value })} placeholder="str. Exemplu 1" required />
-          </label>
-          <label className="field">
             <span>Localitatea (oraș)</span>
             <input value={editing.oras} onChange={(e) => setEditing({ ...editing, oras: e.target.value })} placeholder="Chișinău" required />
           </label>
         </div>
 
         <label className="field">
-          <span>Blocuri / adrese ale APC (una pe rând)</span>
+          <span>Adresa condominiului (str_apc) – una pe rând</span>
           <textarea
             rows={3}
+            required
             value={(editing.adrese || []).join("\n")}
             onChange={(e) => setEditing({ ...editing, adrese: e.target.value.split("\n") })}
             placeholder={"str. A. Doga 13/7\nstr. Cornești 7\nstr. Cornești 11A"}
           />
           <small className="muted">
-            Dacă APC are mai multe blocuri, votantul alege din ce bloc face parte. Cu o singură adresă, lista nu apare
-            la vot. Verificarea „imobil deja votat” se face pe bloc + tip + număr.
+            Dacă APC are mai multe adrese, votantul alege adresa din care face parte. Cu o singură adresă, lista nu
+            apare la vot.
+          </small>
+        </label>
+
+        <label className="field">
+          <span>Blocul condominiului (bl_apc) – una pe rând</span>
+          <textarea
+            rows={3}
+            value={(editing.blocuri || []).join("\n")}
+            onChange={(e) => setEditing({ ...editing, blocuri: e.target.value.split("\n") })}
+            placeholder={"Bl. 1\nBl. 2\nBl. 3"}
+          />
+          <small className="muted">
+            Dacă lăsați lista goală, votantul scrie singur blocul său (opțional). Verificarea „imobil deja votat” se
+            face pe adresă + bloc + tip + număr.
           </small>
         </label>
 

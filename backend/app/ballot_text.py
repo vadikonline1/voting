@@ -82,6 +82,9 @@ def build_ballot_texts(election, voter) -> dict:
 
     # the block / address the owner chose on the ballot; the APC address when there is only one
     adresa = (voter.adresa if voter else "") or str_apc
+    bloc = (getattr(voter, "bloc", "") if voter else "") or ""
+    if bloc:
+        adresa = f"{adresa}, bl. {bloc}"
 
     paragraph2 = (
         f"Dl/Dna {nume_prenume}, tel. {phone}, adresa de corespondență poștală "

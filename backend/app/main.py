@@ -50,6 +50,7 @@ def _migrate_sqlite():
             "chestiune": "TEXT DEFAULT ''",
             "allow_multiple_properties": "BOOLEAN DEFAULT 1",
             "adrese_json": "TEXT DEFAULT '[]'",
+            "blocuri_json": "TEXT DEFAULT '[]'",
             "extend_uuid": "VARCHAR",
             "links_email_sent_at": "DATETIME",
         },
@@ -57,6 +58,7 @@ def _migrate_sqlite():
             "tip_proprietate": "VARCHAR DEFAULT 'apartament'",
             "properties_json": "TEXT DEFAULT '[]'",
             "adresa": "VARCHAR DEFAULT ''",
+            "bloc": "VARCHAR DEFAULT ''",
         },
         "votes": {
             "gdpr_consent_at": "DATETIME",
@@ -75,13 +77,16 @@ def _migrate_sqlite():
         # voter_properties: the unique key becomes (election, block, type, number). SQLite cannot
         # change a constraint in place, so the table is rebuilt once. Without this, the same
         # number in two blocks of one APC would be refused.
+        # Same rebuild again when the block (bl_apc) joined the key. Rows keep their address.
         vp_columns = {row[1] for row in conn.execute(text("PRAGMA table_info(voter_properties)"))}
-        if vp_columns and "adresa" not in vp_columns:
+        if vp_columns and "bloc" not in vp_columns:
+            address_expr = "adresa" if "adresa" in vp_columns else "''"
             conn.execute(text("ALTER TABLE voter_properties RENAME TO voter_properties_old"))
             models.VoterProperty.__table__.create(bind=conn)
             conn.execute(text(
-                "INSERT INTO voter_properties (id, election_id, token_id, adresa, tip_proprietate, nr_proprietate) "
-                "SELECT id, election_id, token_id, '', tip_proprietate, nr_proprietate FROM voter_properties_old"
+                "INSERT INTO voter_properties (id, election_id, token_id, adresa, bloc, tip_proprietate, nr_proprietate) "
+                f"SELECT id, election_id, token_id, {address_expr}, '', tip_proprietate, nr_proprietate "
+                "FROM voter_properties_old"
             ))
             conn.execute(text("DROP TABLE voter_properties_old"))
 
