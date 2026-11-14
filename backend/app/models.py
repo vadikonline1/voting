@@ -218,6 +218,19 @@ class VoterProperty(Base):
     nr_proprietate = Column(String, nullable=False)
 
 
+class BallotTemplate(Base):
+    """Singleton row (id=1): the editable text of the buletin de vot. Empty fields are not used;
+    a missing row means the default text (see ballot_template.py)."""
+    __tablename__ = "ballot_template"
+
+    id = Column(Integer, primary_key=True, default=1)
+    title = Column(Text, nullable=True)
+    paragraph1 = Column(Text, nullable=True)
+    paragraph2 = Column(Text, nullable=True)
+    note = Column(Text, nullable=True)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
 class EmailLog(Base):
     """Every email the system sends for an election: who sent it, to whom, and the headers."""
     __tablename__ = "email_logs"

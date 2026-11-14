@@ -4,6 +4,7 @@ import AdminLogin from "./pages/AdminLogin";
 import AdminElections from "./pages/AdminElections";
 import AdminElectionDetail from "./pages/AdminElectionDetail";
 import AdminSmtp from "./pages/AdminSmtp";
+import AdminBallotTemplate from "./pages/AdminBallotTemplate";
 import AdminChangePassword from "./pages/AdminChangePassword";
 import ElectionDashboard from "./pages/ElectionDashboard";
 import Home from "./pages/Home";
@@ -21,6 +22,7 @@ export default function App() {
         <Route index element={<AdminElections />} />
         <Route path="elections/:id" element={<AdminElectionDetail />} />
         <Route path="smtp" element={<AdminSmtp />} />
+        <Route path="buletin" element={<AdminBallotTemplate />} />
         <Route path="change-password" element={<AdminChangePassword />} />
       </Route>
 

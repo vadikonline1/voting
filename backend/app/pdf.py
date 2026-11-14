@@ -3,6 +3,7 @@ layout: centered title, a date/city line, two left-aligned legal paragraphs, the
 (Hotărâri) with the owner's vote, and the holographic signature at the end."""
 import os
 from datetime import datetime
+from xml.sax.saxutils import escape as xml_escape
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
@@ -11,7 +12,7 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
@@ -31,6 +32,11 @@ right_style = ParagraphStyle("RightCustom", parent=styles["Normal"], alignment=T
 h2_style = ParagraphStyle("H2Custom", parent=styles["Heading2"], fontSize=11, spaceAfter=4, fontName="DejaVuSans-Bold")
 normal_style = ParagraphStyle("NormalCustom", parent=styles["Normal"], fontName="DejaVuSans")
 small_style = ParagraphStyle("Small", parent=styles["Normal"], fontSize=8, textColor=colors.grey, fontName="DejaVuSans")
+# legal paragraphs: justified, first line indented ("aliniat")
+indent_style = ParagraphStyle(
+    "IndentCustom", parent=body_style, alignment=TA_JUSTIFY, firstLineIndent=12 * mm, spaceAfter=8,
+)
+note_style = ParagraphStyle("NoteCustom", parent=body_style, fontSize=8.5, leading=12, textColor=colors.HexColor("#4b5563"))
 
 
 def _answer_text(question: dict, answer) -> str:
@@ -50,8 +56,9 @@ def generate_receipt_pdf(
     signature_path: str | None,
     output_path: str,
     gdpr_consent_at: datetime | None = None,
+    template: dict | None = None,
 ) -> str:
-    texts = build_ballot_texts(election, voter)
+    texts = build_ballot_texts(election, voter, template, submitted_at)
     questions = public_questions(__import__("json").loads(election.questions_json or "[]"))
 
     doc = SimpleDocTemplate(
@@ -60,19 +67,11 @@ def generate_receipt_pdf(
     )
     elements = []
 
-    elements.append(Paragraph(texts["title"], title_style))
-    elements.append(Spacer(1, 4 * mm))
+    elements.append(Paragraph(xml_escape(texts["title"]), title_style))
+    elements.append(Spacer(1, 6 * mm))
 
-    date_city_table = Table(
-        [[Paragraph(texts["date_line"], left_style), Paragraph(texts["city_line"], right_style)]],
-        colWidths=[85 * mm, 85 * mm],
-    )
-    date_city_table.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
-    elements.append(date_city_table)
-    elements.append(Spacer(1, 5 * mm))
-
-    elements.append(Paragraph(texts["paragraph1"], body_style))
-    elements.append(Paragraph(texts["paragraph2"], body_style))
+    elements.append(Paragraph(xml_escape(texts["paragraph1"]), indent_style))
+    elements.append(Paragraph(xml_escape(texts["paragraph2"]), indent_style))
     elements.append(Spacer(1, 4 * mm))
 
     for q, label in labelled_questions(questions):
@@ -86,6 +85,10 @@ def generate_receipt_pdf(
         elements.append(Paragraph(f"{label}. {text}", h2_style))
         elements.append(Paragraph(f"Vot: <b>{_answer_text(q, answers.get(qid))}</b>", normal_style))
         elements.append(Spacer(1, 3 * mm))
+
+    if texts.get("note"):
+        elements.append(Paragraph(xml_escape(texts["note"]), note_style))
+        elements.append(Spacer(1, 4 * mm))
 
     meta_rows = [
         ["ID vot (token):", voter.id if voter else ""],

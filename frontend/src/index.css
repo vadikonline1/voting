@@ -287,10 +287,16 @@ h2 { font-size: 1.25rem; }
 .blank-page { min-height: 100vh; background: #ffffff; }
 
 /* --- public results dashboard ------------------------------------------ */
+/* full-width background; the content stays centred in an 860px column */
 .public-dashboard {
-  max-width: 860px;
-  margin: 0 auto;
-  padding: 40px 20px 64px;
+  min-height: 100vh;
+  padding: 40px max(20px, calc((100% - 860px) / 2)) 64px;
+  background-color: #eef3fb;
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(36, 82, 181, 0.13) 1px, transparent 0),
+    linear-gradient(160deg, #dfe9fa 0%, #f3f7fd 42%, #e6f3ec 100%);
+  background-size: 22px 22px, 100% 100%;
+  background-attachment: fixed;
 }
 
 .public-dashboard-header {
@@ -1313,4 +1319,44 @@ h2 { font-size: 1.25rem; }
 @media (max-width: 720px) {
   .modal-grid { grid-template-columns: 1fr; gap: 2px; }
   .modal-grid dt { margin-top: 8px; }
+}
+
+/* --- Admin: ballot text template (buletin de vot) ------------------------ */
+.ballot-tpl-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.inline-field { margin: 0; }
+.var-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+.var-chip {
+  border: 1px solid #c9d6ef;
+  background: #f2f6fd;
+  color: #2452b5;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  font-family: ui-monospace, Consolas, monospace;
+}
+.var-chip:hover { background: #e3ecfb; }
+.var-table td code { font-size: 0.8rem; }
+.paper {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 28px 34px;
+  font-family: "Times New Roman", "DejaVu Serif", Georgia, serif;
+  color: #111;
+  max-width: 760px;
+  margin: 0 auto;
+}
+.paper-title { text-align: center; font-size: 1.05rem; line-height: 1.4; margin: 0 0 18px; }
+.paper-indent { text-align: justify; text-indent: 36px; line-height: 1.55; margin: 0 0 12px; font-size: 0.95rem; }
+.paper-decisions { text-align: center; font-size: 0.85rem; margin: 14px 0; }
+.paper-note { font-size: 0.8rem; line-height: 1.5; color: #4b5563; margin: 14px 0 0; }
+@media (max-width: 900px) {
+  .ballot-tpl-grid { grid-template-columns: 1fr; }
+  .paper { padding: 18px 16px; }
 }

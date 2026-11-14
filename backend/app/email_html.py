@@ -34,17 +34,18 @@ def _split_template(template: str, values: dict) -> tuple[str, str]:
     return render_template(before, values).strip(), render_template(after, values).strip()
 
 
-def _ballot_text(election, voter, answers: dict, submitted_at: datetime) -> str:
-    texts = build_ballot_texts(election, voter)
+def _ballot_text(election, voter, answers: dict, submitted_at: datetime, template: dict | None = None) -> str:
+    texts = build_ballot_texts(election, voter, template, submitted_at)
     lines = [
         texts["title"],
-        f"{texts['date_line']}                                    {texts['city_line']}",
         "",
-        texts["paragraph1"],
+        "    " + texts["paragraph1"],
         "",
-        texts["paragraph2"],
+        "    " + texts["paragraph2"],
         "",
     ]
+    if texts.get("note"):
+        lines += [texts["note"], ""]
     for q, label in labelled_questions(_questions(election)):
         if label is None:
             lines += [q.get("text", "").strip(), ""]
@@ -59,8 +60,8 @@ def _ballot_text(election, voter, answers: dict, submitted_at: datetime) -> str:
     return "\n".join(lines).rstrip()
 
 
-def _ballot_html(election, voter, answers: dict, submitted_at: datetime) -> str:
-    texts = build_ballot_texts(election, voter)
+def _ballot_html(election, voter, answers: dict, submitted_at: datetime, template: dict | None = None) -> str:
+    texts = build_ballot_texts(election, voter, template, submitted_at)
     rows = []
     for q, label in labelled_questions(_questions(election)):
         if label is None:
@@ -81,14 +82,10 @@ def _ballot_html(election, voter, answers: dict, submitted_at: datetime) -> str:
     return (
         '<div style="margin:18px 0;padding:22px 24px;border:1px solid #e2e5ea;border-radius:10px;background:#ffffff;">'
         f'<h2 style="text-align:center;font-size:18px;line-height:1.4;margin:0 0 12px;">{escape(texts["title"])}</h2>'
-        '<table role="presentation" width="100%" style="border-collapse:collapse;margin:0 0 16px;font-size:14px;">'
-        '<tr>'
-        f'<td align="left" style="padding:0;">{escape(texts["date_line"])}</td>'
-        f'<td align="right" style="padding:0;">{escape(texts["city_line"])}</td>'
-        "</tr></table>"
-        f'<p style="margin:0 0 12px;font-size:14px;line-height:1.55;text-align:justify;">{escape(texts["paragraph1"])}</p>'
-        f'<p style="margin:0 0 18px;font-size:14px;line-height:1.55;text-align:justify;">{escape(texts["paragraph2"])}</p>'
+        f'<p style="margin:0 0 12px;font-size:14px;line-height:1.55;text-align:justify;text-indent:28px;">{escape(texts["paragraph1"])}</p>'
+        f'<p style="margin:0 0 18px;font-size:14px;line-height:1.55;text-align:justify;text-indent:28px;">{escape(texts["paragraph2"])}</p>'
         + "".join(rows)
+        + (f'<p style="margin:14px 0 0;font-size:12px;line-height:1.5;color:#6b7280;">{escape(texts["note"])}</p>' if texts.get("note") else "")
         + '<p style="margin:14px 0 0;font-size:13px;color:#6b7280;">'
         f"Data și ora votării: {escape(submitted_at.strftime('%d.%m.%Y %H:%M:%S UTC'))} · Consimțământ GDPR: acordat"
         "</p></div>"
@@ -138,9 +135,10 @@ def build_email_text(
     values: dict,
     receipt_url: str | None = None,
     attach_pdf: bool = True,
+    template: dict | None = None,
 ) -> str:
     before, after = _split_template(body_template, values)
-    ballot = _ballot_text(election, voter, answers, submitted_at)
+    ballot = _ballot_text(election, voter, answers, submitted_at, template)
     note, _ = _delivery_note(attach_pdf, receipt_url)
     parts = [p for p in [before, ballot, after, note] if p]
     return "\n\n".join(parts)
@@ -156,9 +154,10 @@ def build_email_html(
     values: dict,
     receipt_url: str | None = None,
     attach_pdf: bool = True,
+    template: dict | None = None,
 ) -> str:
     before, after = _split_template(body_template, values)
-    ballot = _ballot_html(election, voter, answers, submitted_at)
+    ballot = _ballot_html(election, voter, answers, submitted_at, template)
     _, note_html = _delivery_note(attach_pdf, receipt_url)
     note = f'<p style="margin:0;font-size:13px;color:#6b7280;">{note_html}</p>' if note_html else ""
     title = escape(values.get("election_title", ""))

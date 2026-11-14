@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..ballot_template import load_template, template_values
 from ..ballot_text import GDPR_TEXT, PLACEHOLDER, build_ballot_texts, public_questions
 from ..config import settings
 from ..database import get_db
@@ -327,12 +328,15 @@ def _send_confirmation(db, election, token, effective, submitted_at, receipt_pat
     attach_pdf = bool(election.email_with_attachment)
     receipt_url = f"{settings.public_base_url.rstrip('/')}/api/ballot/receipt/{token.id}.pdf"
     submitted_str = submitted_at.strftime("%d.%m.%Y %H:%M:%S UTC")
-    values = dict(
-        voter_name=token.nume_prenume or "votant",
-        election_title=election.title,
-        submitted_at=submitted_str,
-        nr_apc=election.nr_apc or "",
-    )
+    template = load_template(db)
+    # every variable of the ballot template is also available in the admin's email text
+    values = {
+        **template_values(election, token, submitted_at),
+        "voter_name": token.nume_prenume or "votant",
+        "election_title": election.title,
+        "submitted_at": submitted_str,
+        "nr_apc": election.nr_apc or "",
+    }
     ok, _info = send_confirmation_email(
         smtp,
         to_email=to_email,
@@ -345,12 +349,12 @@ def _send_confirmation(db, election, token, effective, submitted_at, receipt_pat
         text_body=build_email_text(
             election=election, voter=token, answers=effective, submitted_at=submitted_at,
             body_template=smtp.body_template, values=values,
-            receipt_url=receipt_url, attach_pdf=attach_pdf,
+            receipt_url=receipt_url, attach_pdf=attach_pdf, template=template,
         ),
         html_body=build_email_html(
             election=election, voter=token, answers=effective, submitted_at=submitted_at,
             body_template=smtp.body_template, values=values,
-            receipt_url=receipt_url, attach_pdf=attach_pdf,
+            receipt_url=receipt_url, attach_pdf=attach_pdf, template=template,
         ),
         attach_pdf=attach_pdf,
         nr_apc=election.nr_apc or "",
@@ -366,7 +370,7 @@ def _send_confirmation(db, election, token, effective, submitted_at, receipt_pat
 @router.get("/apc/{nr_apc}", response_model=schemas.ApcBallotOut)
 def get_apc_ballot(nr_apc: str, db: Session = Depends(get_db)):
     election = _active_election(db, nr_apc)
-    texts = build_ballot_texts(election, None)
+    texts = build_ballot_texts(election, None, load_template(db))
     status_ = election_status(election)
     return schemas.ApcBallotOut(
         nr_apc=election.nr_apc,
@@ -475,6 +479,7 @@ def submit_apc_vote(nr_apc: str, payload: schemas.VoteSubmission, request: Reque
         signature_path=vote.signature_path,
         output_path=receipt_path,
         gdpr_consent_at=submitted_at,
+        template=load_template(db),
     )
     vote.receipt_pdf_path = receipt_path
     db.commit()

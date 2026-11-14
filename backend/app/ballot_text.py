@@ -3,7 +3,7 @@ generated PDF and the confirmation email. Only the bracketed variables change; e
 else is fixed legal text. The web voting page intentionally does not display these paragraphs."""
 from datetime import datetime
 
-PLACEHOLDER = "…………………"
+from .ballot_template import DEFAULT_TEMPLATE, FIELDS, PLACEHOLDER, render, template_values
 
 GDPR_TEXT = (
     "Accept prelucrarea datelor mele cu caracter personal (nume și prenume, telefon, "
@@ -52,52 +52,12 @@ def format_date_ro(dt: datetime | None) -> str:
     return dt.strftime("%d.%m.%Y")
 
 
-def build_ballot_texts(election, voter) -> dict:
-    nr_apc = election.nr_apc or PLACEHOLDER
-    str_apc = election.str_apc or PLACEHOLDER
-    oras = election.oras or PLACEHOLDER
-    tip_proprietate = election.tip_proprietate or "apartament"
-    start_date_vot = format_date_ro(election.start_date_vot)
-    end_date_vot = format_date_ro(election.end_date_vot)
-
-    title = f"Buletin de VOT, al Adunării Generale Mixte a membrilor APC nr. {nr_apc}, din {str_apc}"
-
-    paragraph1 = (
-        "În conformitate cu prevederile art. 41 alin. (1), (2), al Legii nr. 187 din 14.07.2022 cu "
-        "privire la condominiu, se emite buletinul de vot, necesar pentru primirea deciziilor asupra "
-        "chestiunilor propuse spre vot, care urmează a fi completat (de către membrii asociației ce nu au "
-        f"fost prezenți la Adunarea Generală cu prezență din data de {start_date_vot}) și remis către APC "
-        f"nr. {nr_apc} până la data de {end_date_vot} inclusiv, după cum urmează:"
-    )
-
-    nume_prenume = (voter.nume_prenume if voter else "") or PLACEHOLDER
-    phone = (voter.phone if voter else "") or PLACEHOLDER
-    str_locatar = (voter.str_locatar if voter else "") or PLACEHOLDER
-    email = (voter.email if voter else "") or PLACEHOLDER
-    props = voter.properties if voter else []
-    if props:
-        props_text = ", ".join(f"{p['tip_proprietate']} cu nr {p['nr_proprietate']}" for p in props)
-    else:
-        props_text = f"{tip_proprietate} cu nr {PLACEHOLDER}"
-
-    # the block / address the owner chose on the ballot; the APC address when there is only one
-    adresa = (voter.adresa if voter else "") or str_apc
-    bloc = (getattr(voter, "bloc", "") if voter else "") or ""
-    if bloc:
-        adresa = f"{adresa}, bl. {bloc}"
-
-    paragraph2 = (
-        f"Dl/Dna {nume_prenume}, tel. {phone}, adresa de corespondență poștală "
-        f"{str_locatar}, adresa electronică {email}, în calitate de membru al "
-        f"Asociației de Proprietari din Condominiu nr. {nr_apc}, proprietar al unității (bunului "
-        f"imobil) din: {adresa}, {props_text}, îmi exprim votul "
-        "(Da/Pro, Nu/Contra) pentru adoptarea următoarelor Hotărâri:"
-    )
-
-    return {
-        "title": title,
-        "date_line": start_date_vot,
-        "city_line": oras,
-        "paragraph1": paragraph1,
-        "paragraph2": paragraph2,
-    }
+def build_ballot_texts(election, voter, template: dict | None = None, submitted_at=None) -> dict:
+    """The four parts of the ballot, rendered from the admin's text (ballot_template.py).
+    The date/city keys are kept for the voting page."""
+    tpl = template or DEFAULT_TEMPLATE
+    values = template_values(election, voter, submitted_at)
+    texts = {field: render(tpl.get(field) or "", values) for field in FIELDS}
+    texts["date_line"] = format_date_ro(election.start_date_vot)
+    texts["city_line"] = election.oras or PLACEHOLDER
+    return texts

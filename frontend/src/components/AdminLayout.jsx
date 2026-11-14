@@ -46,6 +46,7 @@ export default function AdminLayout() {
               <NavLink to="/admin" end>
                 Alegeri &amp; conținut
               </NavLink>
+              <NavLink to="/admin/buletin">Șablon buletin</NavLink>
               <NavLink to="/admin/smtp">Setări SMTP</NavLink>
               <NavLink to="/admin/change-password">Schimbă parola</NavLink>
             </>

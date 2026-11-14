@@ -120,6 +120,18 @@ class VoteSubmission(BaseModel):
     signature_png_base64: Optional[str] = None
 
 
+class BallotTemplateIn(BaseModel):
+    """The editable parts of the buletin de vot (variables in braces, e.g. {nr_apc})."""
+    title: str = ""
+    paragraph1: str = ""
+    paragraph2: str = ""
+    note: str = ""
+
+
+class BallotPreviewIn(BallotTemplateIn):
+    election_id: Optional[int] = None  # the vote whose data fills the variables in the preview
+
+
 class AdminLogin(BaseModel):
     username: str
     password: str

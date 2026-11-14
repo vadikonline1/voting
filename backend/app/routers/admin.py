@@ -4,6 +4,7 @@ import io
 import json
 import uuid
 from datetime import datetime, timezone
+from types import SimpleNamespace
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import func
@@ -14,6 +15,8 @@ from ..auth import (
     create_session_token, hash_password, verify_password, require_admin,
     get_current_admin, SESSION_COOKIE, SESSION_MAX_AGE,
 )
+from ..ballot_template import DEFAULT_TEMPLATE, VARIABLES, load_template, save_template, template_values
+from ..ballot_text import build_ballot_texts
 from ..config import settings
 from ..database import get_db
 from ..extension import extend_url
@@ -441,6 +444,52 @@ def send_results(
     if not ok:
         raise HTTPException(status_code=400, detail=f"Trimiterea a eșuat: {info}")
     return {"ok": True, "sent_to": election.results_email, "final": final}
+
+
+# ------------------------------------------------------- ballot template ----
+def _sample_voter():
+    """An example owner for the preview (never saved)."""
+    return SimpleNamespace(
+        id="exemplu", nume_prenume="Ion Popescu", phone="+373 60 000 000",
+        str_locatar="str. Exemplu 1, ap. 2", email="votant@exemplu.md", adresa="", bloc="E",
+        properties=[{"tip_proprietate": "apartament", "nr_proprietate": "803/E"}],
+    )
+
+
+@router.get("/ballot-template")
+def get_ballot_template(username: str = Depends(require_admin), db: Session = Depends(get_db)):
+    return {
+        "template": load_template(db),
+        "defaults": DEFAULT_TEMPLATE,
+        "variables": [{"key": k, "label": label, "example": example} for k, label, example in VARIABLES],
+    }
+
+
+@router.put("/ballot-template")
+def put_ballot_template(payload: schemas.BallotTemplateIn, username: str = Depends(require_admin), db: Session = Depends(get_db)):
+    return save_template(db, payload.model_dump())
+
+
+@router.post("/ballot-template/preview")
+def preview_ballot_template(payload: schemas.BallotPreviewIn, username: str = Depends(require_admin), db: Session = Depends(get_db)):
+    """Renders the text with the given (unsaved) template. Variables come from the chosen vote, or from
+    the first vote, and the owner is an example."""
+    election = None
+    if payload.election_id:
+        election = db.query(models.Election).get(payload.election_id)
+    if election is None:
+        election = db.query(models.Election).order_by(models.Election.id.desc()).first()
+    if election is None:
+        election = models.Election(title="Exemplu", nr_apc="12", str_apc="str. Exemplu 1", oras="Chișinău",
+                                   start_date_vot=datetime(2026, 10, 31), end_date_vot=datetime(2026, 11, 25))
+    template = payload.model_dump(exclude={"election_id"})
+    voter = _sample_voter()
+    submitted_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    return {
+        "rendered": build_ballot_texts(election, voter, template, submitted_at),
+        "values": template_values(election, voter, submitted_at),
+        "election_title": election.title,
+    }
 
 
 # --------------------------------------------------------------- smtp -----
