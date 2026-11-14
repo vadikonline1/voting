@@ -14,7 +14,7 @@ FIELDS = ("title", "paragraph1", "paragraph2", "note")
 # The text used until the admin changes it (the legal wording of the APC ballot).
 DEFAULT_TEMPLATE = {
     "title": (
-        "Buletin de VOT, al Adunării Generale Mixte a membrilor APC nr. {nr_apc}, {str_apc}, "
+        "Buletin de VOT, al Adunării Generale Mixte a membrilor APC nr. {nr_apc}, {adresa}, "
         "din data de {start_date_long} {oras}"
     ),
     "paragraph1": (
@@ -22,7 +22,7 @@ DEFAULT_TEMPLATE = {
         "se emite buletinul de vot, necesar pentru primirea deciziilor asupra chestiunilor propuse spre vot, "
         "care urmează a fi completat de fiecare membru al Asociației de Proprietari din Condominiu nr. {nr_apc} "
         "și transmis către APC nr. {nr_apc} până la data de {end_date_long}, fizic, online pe adresa "
-        "https://exfactormcb41.md/buletin-de-vot-2026/, și/sau la adresa electronică: {email_apc}, "
+        "{vote_url}, și/sau la adresa electronică: {email_apc}, "
         "inclusiv, după cum urmează:"
     ),
     "paragraph2": (
@@ -49,7 +49,7 @@ VARIABLES = [
     ("email_apc", "Adresa electronică a APC (rezultate)", "apc@exemplu.md"),
     ("vote_url", "Linkul fix de vot al APC", "https://vot.exemplu.md/12"),
     ("dashboard_url", "Linkul dashboard-ului cu rezultate", "https://vot.exemplu.md/<uuid>/dashboard"),
-    ("adresa", "Adresa condominiului aleasă de votant", "str. Cornești 7"),
+    ("adresa", "Adresa condominiului selectată de proprietar (nu toate adresele)", "str. Cornești 7"),
     ("bloc", "Blocul votantului", "E"),
     ("adresa_bloc", "Adresa și blocul votantului, ex. „str. X, blocul E”", "str. Cornești 7, blocul E"),
     ("imobile", "Imobilele votantului, ex. „apartament 803/E, debara 4”", "apartament 803/E"),
@@ -101,8 +101,10 @@ def template_values(election, voter=None, submitted_at: datetime | None = None) 
     addresses = election.addresses
     str_apc = "; ".join(addresses) if addresses else (election.str_apc or PLACEHOLDER)
     if voter is None:
-        # blank ballot: the owner's own fields stay as placeholders to be filled by hand
-        adresa, bloc, adresa_bloc = PLACEHOLDER, "", PLACEHOLDER
+        # blank ballot: the owner's own fields stay as placeholders to be filled by hand.
+        # The address is only known when the APC has a single one.
+        adresa = addresses[0] if len(addresses) == 1 else PLACEHOLDER
+        bloc, adresa_bloc = "", PLACEHOLDER
     else:
         # the address the owner chose (or the only address of the APC), and the block he wrote or picked
         adresa = (getattr(voter, "adresa", "") or "") or (addresses[0] if addresses else str_apc)
