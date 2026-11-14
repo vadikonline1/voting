@@ -103,7 +103,7 @@ def template_values(election, voter=None, submitted_at: datetime | None = None) 
     if voter is None:
         # blank ballot: the owner's own fields stay as placeholders to be filled by hand.
         # The address is only known when the APC has a single one.
-        adresa = addresses[0] if len(addresses) == 1 else PLACEHOLDER
+        adresa = addresses[0] if len(addresses) == 1 else ""
         bloc, adresa_bloc = "", PLACEHOLDER
     else:
         # the address the owner chose (or the only address of the APC), and the block he wrote or picked

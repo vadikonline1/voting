@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
+import RetentionCard from "../components/RetentionCard";
 
 /** A chestiune (titlu-notiță). Its questions below it are lettered a, b, c… from the start. */
 function emptySection() {
@@ -796,6 +797,7 @@ export default function AdminElections() {
         </button>
       </div>
       {error && <p className="error">{error}</p>}
+      <RetentionCard onChanged={load} />
       <div className="table-wrap">
         <table className="admin-table">
           <thead>

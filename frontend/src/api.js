@@ -35,6 +35,10 @@ export const api = {
   publicResults: (publicUuid) => request(`/public/results/${publicUuid}`),
   getExtension: (token) => request(`/extend/${encodeURIComponent(token)}`),
   sendLinks: (electionId) => request(`/admin/elections/${electionId}/send-links`, { method: "POST" }),
+  retentionPreview: () => request(`/admin/retention`),
+  retentionPurgeOld: () => request(`/admin/retention/purge-old`, { method: "POST" }),
+  retentionClearAll: (payload) =>
+    request(`/admin/retention/clear-all`, { method: "POST", body: JSON.stringify(payload) }),
   voteDetail: (electionId, tokenId) => request(`/admin/elections/${electionId}/votes/${tokenId}`),
   getBallotTemplate: () => request(`/admin/ballot-template`),
   saveBallotTemplate: (payload) => request(`/admin/ballot-template`, { method: "PUT", body: JSON.stringify(payload) }),

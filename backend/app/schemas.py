@@ -128,6 +128,10 @@ class BallotTemplateIn(BaseModel):
     note: str = ""
 
 
+class ClearAllIn(BaseModel):
+    confirm: str = ""  # must be the exact words shown in the admin, e.g. "STERGE TOT"
+
+
 class BallotPreviewIn(BallotTemplateIn):
     election_id: Optional[int] = None  # the vote whose data fills the variables in the preview
 

@@ -15,6 +15,7 @@ from ..auth import (
     create_session_token, hash_password, verify_password, require_admin,
     get_current_admin, SESSION_COOKIE, SESSION_MAX_AGE,
 )
+from .. import retention
 from ..ballot_template import DEFAULT_TEMPLATE, VARIABLES, load_template, save_template, template_values
 from ..ballot_text import build_ballot_texts, labelled_questions, public_questions
 from ..config import settings
@@ -480,6 +481,30 @@ def send_results(
     if not ok:
         raise HTTPException(status_code=400, detail=f"Trimiterea a eșuat: {info}")
     return {"ok": True, "sent_to": election.results_email, "final": final}
+
+
+# ------------------------------------------------------------ retention ----
+@router.get("/retention")
+def retention_preview(username: str = Depends(require_admin), db: Session = Depends(get_db)):
+    return retention.preview(db)
+
+
+@router.post("/retention/purge-old")
+def retention_purge_old(username: str = Depends(require_admin), db: Session = Depends(get_db)):
+    """Deletes every vote that ended more than 180 days ago (permanent)."""
+    result = retention.purge_old(db)
+    return {"ok": True, **result}
+
+
+@router.post("/retention/clear-all")
+def retention_clear_all(payload: schemas.ClearAllIn, username: str = Depends(require_admin), db: Session = Depends(get_db)):
+    """Deletes every vote. Allowed only when no vote is active, and only with the typed confirmation."""
+    if retention.has_active_vote(db):
+        raise HTTPException(status_code=409, detail="Există un vot activ. Dezactivați-l înainte de golire.")
+    if (payload.confirm or "").strip() != "STERGE TOT":
+        raise HTTPException(status_code=400, detail="Scrieți „STERGE TOT” pentru confirmare.")
+    result = retention.clear_all(db)
+    return {"ok": True, **result}
 
 
 # ------------------------------------------------------- ballot template ----

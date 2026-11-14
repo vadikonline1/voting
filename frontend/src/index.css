@@ -1440,3 +1440,24 @@ h2 { font-size: 1.25rem; }
 }
 .vote-q { font-weight: 600; line-height: 1.4; margin-bottom: 4px; }
 .vote-a { font-size: 0.92rem; color: #1f2430; }
+
+/* --- admin: data retention card ---------------------------------------- */
+.retention-card { margin-bottom: 18px; }
+.retention-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.retention-clear { align-items: flex-start; }
+.retention-confirm { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.retention-confirm input { min-width: 180px; }
+.retention-list { margin-top: 6px; }
+.retention-list summary { cursor: pointer; color: var(--primary); }
+.retention-list ul { margin: 6px 0 0 18px; padding: 0; font-size: 0.9rem; }
+@media (max-width: 720px) {
+  .retention-row { flex-direction: column; align-items: stretch; }
+}

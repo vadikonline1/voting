@@ -1,6 +1,7 @@
 """Single source of truth for the fixed legal ballot text (buletin de vot APC), used by the
 generated PDF and the confirmation email. Only the bracketed variables change; everything
 else is fixed legal text. The web voting page intentionally does not display these paragraphs."""
+import re
 from datetime import datetime
 
 from .ballot_template import DEFAULT_TEMPLATE, FIELDS, PLACEHOLDER, render, template_values
@@ -58,6 +59,9 @@ def build_ballot_texts(election, voter, template: dict | None = None, submitted_
     tpl = template or DEFAULT_TEMPLATE
     values = template_values(election, voter, submitted_at)
     texts = {field: render(tpl.get(field) or "", values) for field in FIELDS}
+    if voter is None:
+        # blank ballot: an unknown address leaves no empty part in the title ("nr. X, , din" -> "nr. X, din")
+        texts["title"] = re.sub(r",\s*,", ",", texts["title"])
     texts["date_line"] = format_date_ro(election.start_date_vot)
     texts["city_line"] = election.oras or PLACEHOLDER
     return texts
