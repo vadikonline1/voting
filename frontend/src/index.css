@@ -1369,3 +1369,20 @@ h2 { font-size: 1.25rem; }
   .ballot-tpl-grid { grid-template-columns: 1fr; }
   .paper { padding: 18px 16px; }
 }
+
+/* --- public dashboard: the chestiune put to the vote ------------------- */
+.dashboard-chestiune {
+  background: #ffffff;
+  border: 1px solid #c9d6ef;
+  border-left: 4px solid var(--primary);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin: 0 0 20px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+.dashboard-chestiune p {
+  margin: 6px 0 0;
+  font-size: 1.02rem;
+  line-height: 1.5;
+  white-space: pre-line;
+}

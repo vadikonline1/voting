@@ -76,6 +76,7 @@ def compute_results(db, election: models.Election) -> dict:
     return {
         "election_id": election.id,
         "title": election.title,
+        "chestiune": election.chestiune or "",
         "nr_apc": election.nr_apc or "",
         "str_apc": election.str_apc or "",
         "oras": election.oras or "",
