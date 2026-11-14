@@ -35,6 +35,7 @@ export const api = {
   publicResults: (publicUuid) => request(`/public/results/${publicUuid}`),
   getExtension: (token) => request(`/extend/${encodeURIComponent(token)}`),
   sendLinks: (electionId) => request(`/admin/elections/${electionId}/send-links`, { method: "POST" }),
+  voteDetail: (electionId, tokenId) => request(`/admin/elections/${electionId}/votes/${tokenId}`),
   getBallotTemplate: () => request(`/admin/ballot-template`),
   saveBallotTemplate: (payload) => request(`/admin/ballot-template`, { method: "PUT", body: JSON.stringify(payload) }),
   previewBallotTemplate: (payload) =>

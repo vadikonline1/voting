@@ -1414,3 +1414,29 @@ h2 { font-size: 1.25rem; }
   opacity: 0.85;
   white-space: nowrap;
 }
+
+/* --- admin: voter's UUID and the vote window -------------------------- */
+.uuid-text {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 0.72rem;
+  word-break: break-all;
+  color: var(--muted);
+}
+.vote-section {
+  margin: 16px 0 8px;
+  padding: 8px 12px;
+  background: #eef4ff;
+  border-left: 4px solid var(--primary);
+  border-radius: 8px;
+  font-size: 0.98rem;
+  line-height: 1.4;
+}
+.vote-item {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 0 0 8px;
+  background: #fff;
+}
+.vote-q { font-weight: 600; line-height: 1.4; margin-bottom: 4px; }
+.vote-a { font-size: 0.92rem; color: #1f2430; }

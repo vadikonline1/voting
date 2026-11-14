@@ -19,6 +19,15 @@ export default function AdminElectionDetail() {
   const [selectedEmail, setSelectedEmail] = useState(null); // email row shown in the details modal
   const [sendingLinks, setSendingLinks] = useState(false);
   const [linksStatus, setLinksStatus] = useState("");
+  const [voteView, setVoteView] = useState(null); // { loading } | { data } | { error } for the vote window
+
+  function openVote(tokenId) {
+    setVoteView({ loading: true });
+    api
+      .voteDetail(id, tokenId)
+      .then((data) => setVoteView({ data }))
+      .catch((e) => setVoteView({ error: e.message }));
+  }
 
   useEffect(() => {
     if (tab === "emails") {
@@ -238,6 +247,8 @@ export default function AdminElectionDetail() {
                   <th>Email</th>
                   <th>A votat?</th>
                   <th>Data votării</th>
+                  <th>ID vot (UUID)</th>
+                  <th>Votul</th>
                 </tr>
               </thead>
               <tbody>
@@ -257,6 +268,20 @@ export default function AdminElectionDetail() {
                       <td>{r.email || "—"}</td>
                       <td>{r.has_voted ? "✅ Da" : "❌ Nu"}</td>
                       <td>{r.voted_at ? new Date(r.voted_at).toLocaleString("ro-RO") : "—"}</td>
+                      <td>
+                        <code className="uuid-text" title={r.token_id}>
+                          {r.token_id}
+                        </code>
+                      </td>
+                      <td>
+                        {r.has_voted ? (
+                          <button type="button" className="btn-link" onClick={() => openVote(r.token_id)}>
+                            Vezi votul
+                          </button>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
                     </tr>
                   ))}
               </tbody>
@@ -382,6 +407,64 @@ export default function AdminElectionDetail() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {voteView && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setVoteView(null)}>
+          <div className="modal" role="dialog" aria-modal="true" aria-label="Votul" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h3>Votul persoanei</h3>
+              <button type="button" className="icon-btn" aria-label="Închide" onClick={() => setVoteView(null)}>
+                ×
+              </button>
+            </div>
+            {voteView.loading && <p className="muted">Se încarcă votul...</p>}
+            {voteView.error && <p className="error">{voteView.error}</p>}
+            {voteView.data && (
+              <>
+                <dl className="modal-grid">
+                  <dt>Nume</dt>
+                  <dd>{voteView.data.nume_prenume || "—"}</dd>
+                  <dt>ID vot (UUID)</dt>
+                  <dd>
+                    <code className="uuid-text">{voteView.data.token_id}</code>
+                  </dd>
+                  <dt>Bloc / adresă</dt>
+                  <dd>{[voteView.data.adresa, voteView.data.bloc && `bl. ${voteView.data.bloc}`].filter(Boolean).join(", ") || "—"}</dd>
+                  <dt>Imobile</dt>
+                  <dd>
+                    {voteView.data.properties
+                      .map((p) => `${TIP_LABELS[p.tip_proprietate] || p.tip_proprietate} ${p.nr_proprietate}`)
+                      .join(", ") || "—"}
+                  </dd>
+                  <dt>Votat la</dt>
+                  <dd>{voteView.data.voted_at ? new Date(voteView.data.voted_at).toLocaleString("ro-RO") : "—"}</dd>
+                </dl>
+                {voteView.data.items.map((item, idx) =>
+                  item.type === "section" ? (
+                    <h4 key={idx} className="vote-section">
+                      {item.text}
+                    </h4>
+                  ) : (
+                    <div key={idx} className="vote-item">
+                      <div className="vote-q">
+                        {item.label}. {item.text}
+                      </div>
+                      <div className="vote-a">
+                        Vot: <strong>{item.answer}</strong>
+                      </div>
+                    </div>
+                  )
+                )}
+                <p>
+                  <a href={voteView.data.receipt_url} target="_blank" rel="noreferrer">
+                    Deschide buletinul completat (PDF)
+                  </a>
+                </p>
+              </>
+            )}
+          </div>
         </div>
       )}
 

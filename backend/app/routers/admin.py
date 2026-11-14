@@ -16,7 +16,7 @@ from ..auth import (
     get_current_admin, SESSION_COOKIE, SESSION_MAX_AGE,
 )
 from ..ballot_template import DEFAULT_TEMPLATE, VARIABLES, load_template, save_template, template_values
-from ..ballot_text import build_ballot_texts
+from ..ballot_text import build_ballot_texts, labelled_questions, public_questions
 from ..config import settings
 from ..database import get_db
 from ..extension import extend_url
@@ -339,6 +339,42 @@ def checklist(election_id: int, username: str = Depends(require_admin), db: Sess
         "total": total,
         "voted": voted,
         "rows": rows,
+    }
+
+
+@router.get("/elections/{election_id}/votes/{token_id}")
+def vote_detail(election_id: int, token_id: str, username: str = Depends(require_admin), db: Session = Depends(get_db)):
+    """What one owner voted, for the APC administrator (opened from the checklist). Hidden questions are
+    not part of the ballot, so they are not listed."""
+    token = (
+        db.query(models.VoterToken)
+        .filter(models.VoterToken.id == token_id, models.VoterToken.election_id == election_id)
+        .first()
+    )
+    if not token or not token.vote:
+        raise HTTPException(status_code=404, detail="Acest link nu a votat.")
+    election = token.election
+    answers = json.loads(token.vote.answers_json or "{}")
+    items = []
+    for question, label in labelled_questions(public_questions(json.loads(election.questions_json or "[]"))):
+        if label is None:
+            items.append({"type": "section", "text": question.get("text", "")})
+            continue
+        answer = answers.get(question["id"])
+        if isinstance(answer, list):
+            answer_text = ", ".join(str(a) for a in answer) if answer else "(fără răspuns)"
+        else:
+            answer_text = str(answer) if answer not in (None, "") else "(fără răspuns)"
+        items.append({"type": "question", "label": label, "text": question.get("text", ""), "answer": answer_text})
+    return {
+        "token_id": token.id,
+        "nume_prenume": token.nume_prenume,
+        "adresa": token.adresa or "",
+        "bloc": token.bloc or "",
+        "properties": token.properties,
+        "voted_at": token.voted_at.isoformat() if token.voted_at else None,
+        "receipt_url": f"/api/ballot/receipt/{token.id}.pdf?inline=1",
+        "items": items,
     }
 
 
