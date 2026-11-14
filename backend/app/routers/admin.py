@@ -16,6 +16,7 @@ from ..auth import (
 )
 from ..config import settings
 from ..database import get_db
+from ..extension import extend_url
 from ..notifications import send_results_email
 from ..results import compute_results, dashboard_url
 from ..smtp_config import get_smtp
@@ -163,6 +164,7 @@ def _election_to_out(e: models.Election) -> schemas.ElectionOut:
         chestiune=e.chestiune or "",
         adrese=e.addresses,
         vote_url=_vote_url(e.nr_apc),
+        extend_url=extend_url(e),
         questions=json.loads(e.questions_json or "[]"),
         is_active=e.is_active,
         require_signature=e.require_signature,
@@ -324,6 +326,7 @@ def checklist(election_id: int, username: str = Depends(require_admin), db: Sess
     return {
         "election_title": election.title,
         "vote_url": _vote_url(election.nr_apc),
+        "extend_url": extend_url(election),
         "total": total,
         "voted": voted,
         "rows": rows,

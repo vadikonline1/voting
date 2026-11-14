@@ -33,6 +33,9 @@ export const api = {
 
   // public results dashboard
   publicResults: (publicUuid) => request(`/public/results/${publicUuid}`),
+  getExtension: (token) => request(`/extend/${encodeURIComponent(token)}`),
+  extendVote: (token, days) =>
+    request(`/extend/${encodeURIComponent(token)}`, { method: "POST", body: JSON.stringify({ days }) }),
 
   // admin auth
   login: (username, password) =>

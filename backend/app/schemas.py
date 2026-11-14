@@ -62,6 +62,7 @@ class ElectionOut(ElectionIn):
     id: int
     public_uuid: str = ""
     vote_url: str = ""  # PUBLIC_BASE_URL/{nr_apc}
+    extend_url: str = ""  # secret link for the APC to prolong the vote (sent by email)
     created_at: datetime
     updated_at: datetime
 

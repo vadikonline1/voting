@@ -17,7 +17,7 @@ from . import models
 from .auth import hash_password, verify_password
 from .config import settings
 from .notifications import send_expiry_reminders, send_pending_final_results
-from .routers import ballot, admin, public
+from .routers import ballot, admin, public, extend
 
 Base.metadata.create_all(bind=engine)
 
@@ -50,6 +50,7 @@ def _migrate_sqlite():
             "chestiune": "TEXT DEFAULT ''",
             "allow_multiple_properties": "BOOLEAN DEFAULT 1",
             "adrese_json": "TEXT DEFAULT '[]'",
+            "extend_uuid": "VARCHAR",
         },
         "voter_tokens": {
             "tip_proprietate": "VARCHAR DEFAULT 'apartament'",
@@ -95,6 +96,20 @@ def _migrate_sqlite():
         conn.execute(text(
             "CREATE UNIQUE INDEX IF NOT EXISTS ix_elections_public_uuid "
             "ON elections (public_uuid)"
+        ))
+
+        # Same for the secret prolongation link of existing elections.
+        rows = conn.execute(
+            text("SELECT id FROM elections WHERE extend_uuid IS NULL OR extend_uuid = ''")
+        ).fetchall()
+        for (election_id,) in rows:
+            conn.execute(
+                text("UPDATE elections SET extend_uuid = :value WHERE id = :id"),
+                {"value": uuid.uuid4().hex, "id": election_id},
+            )
+        conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_elections_extend_uuid "
+            "ON elections (extend_uuid)"
         ))
 
 
@@ -219,6 +234,7 @@ async def _validation_exception_handler(request: Request, exc: RequestValidation
 app.include_router(ballot.router)
 app.include_router(admin.router)
 app.include_router(public.router)
+app.include_router(extend.router)
 
 FRONTEND_DIST = os.environ.get("FRONTEND_DIST", "/app/frontend_dist")
 

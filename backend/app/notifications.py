@@ -2,6 +2,8 @@
 manually from the admin panel, and once when the voting period ends."""
 import json
 import math
+import os
+import re
 from datetime import datetime, timedelta, timezone
 
 from html import escape
@@ -9,13 +11,22 @@ from html import escape
 from . import models
 from .config import settings
 from .email_utils import send_email
+from .extension import extend_url
 from .smtp_config import get_smtp
 from .results import _aware, compute_results, dashboard_url
 from .results_email import build_results_email_html, build_results_email_text
+from .results_pdf import generate_results_pdf
+
+
+def _results_pdf_name(election: models.Election) -> str:
+    """{data}-rezultate-votare-APC-{nr_apc}.pdf"""
+    nr = re.sub(r'[\/:*?"<>|\s]+', "-", (election.nr_apc or "").strip()).strip("-") or "fara-nr"
+    return f"{datetime.now(timezone.utc).strftime('%Y-%m-%d')}-rezultate-votare-APC-{nr}.pdf"
 
 
 def send_results_email(db, election: models.Election, *, final: bool = False) -> tuple[bool, str]:
-    """Send the current results report. Returns (ok, info)."""
+    """Send the current results report. The final report (vote ended) also carries the secret link to
+    prolong the vote and the results as a PDF. Returns (ok, info)."""
     recipients = (election.results_email or "").strip()
     if not recipients:
         return False, "Nu este configurat un email APC pentru rezultate."
@@ -26,13 +37,23 @@ def send_results_email(db, election: models.Election, *, final: bool = False) ->
 
     results = compute_results(db, election)
     url = dashboard_url(election)
+    pdf_path, link = None, ""
+    if final:
+        pdf_path = generate_results_pdf(
+            election, results,
+            os.path.join(settings.data_dir, "results", f"{election.id}-rezultate-finale.pdf"),
+        )
+        link = extend_url(election)
     subject = f"{'Rezultate finale' if final else 'Rezultate actualizate'} – {election.title}"
     ok, info = send_email(
         smtp,
         to=recipients,
         subject=subject,
-        text_body=build_results_email_text(election, results, dashboard_url=url, final=final),
-        html_body=build_results_email_html(election, results, dashboard_url=url, final=final),
+        text_body=build_results_email_text(election, results, dashboard_url=url, final=final, extend_url=link),
+        html_body=build_results_email_html(election, results, dashboard_url=url, final=final, extend_url=link),
+        pdf_path=pdf_path,
+        attach_pdf=bool(final),
+        attachment_name=_results_pdf_name(election),
         from_name=election.nr_apc or None,
         db=db,
         election_id=election.id,
@@ -106,8 +127,7 @@ def _expiry_email(db, election: models.Election, days_left: int, end: datetime) 
         return False, "SMTP este dezactivat sau neconfigurat."
 
     results = compute_results(db, election)
-    base = settings.public_base_url.rstrip("/")
-    admin_url = f"{base}/admin/elections/{election.id}"
+    link = extend_url(election)
     unit = "zi" if days_left == 1 else "zile"
     subject = f"Votarea expiră în {days_left} {unit} – APC nr. {election.nr_apc}"
     end_text = end.strftime("%d.%m.%Y %H:%M UTC")
@@ -116,9 +136,10 @@ def _expiry_email(db, election: models.Election, days_left: int, end: datetime) 
         f"la data {end_text}.\n\n"
         f"Până în prezent au votat {results['total_votes']} din {results['total_tokens']} proprietari "
         f"({results['participation_percent']}%).\n\n"
-        "Dacă doriți să prelungiți termenul de votare, puteți modifica data din panoul de administrare:\n"
-        f"{admin_url}\n\n"
-        "Dacă votarea se încheie fără prelungire, rezultatele vor fi trimise automat la încheiere."
+        "Dacă doriți să prelungiți termenul de votare, alegeți perioada de prelungire la adresa:\n"
+        f"{link}\n\n"
+        "Dacă votarea se încheie fără prelungire, rezultatele vor fi trimise automat la încheiere, "
+        "împreună cu un raport PDF."
     )
     html = (
         '<div style="font-family:Segoe UI,Roboto,Arial,sans-serif;font-size:15px;line-height:1.55;color:#1f2430;">'
@@ -126,9 +147,11 @@ def _expiry_email(db, election: models.Election, days_left: int, end: datetime) 
         f"expiră în <strong>{days_left} {unit}</strong>, la data {escape(end_text)}.</p>"
         f"<p>Până în prezent au votat <strong>{results['total_votes']}</strong> din "
         f"{results['total_tokens']} proprietari ({results['participation_percent']}%).</p>"
-        "<p>Dacă doriți să prelungiți termenul de votare, modificați data din panoul de administrare:</p>"
-        f'<p><a href="{escape(admin_url)}" style="display:inline-block;padding:10px 18px;border-radius:999px;'
-        'background:#2452b5;color:#fff;text-decoration:none;font-weight:600;">Deschide votul în panou</a></p>'
+        "<p>Dacă doriți să prelungiți termenul de votare, alegeți perioada de prelungire:</p>"
+        f'<p><a href="{escape(link)}" style="display:inline-block;padding:10px 18px;border-radius:999px;'
+        'background:#2452b5;color:#fff;text-decoration:none;font-weight:600;">Prelungește votarea</a></p>'
+        "<p style=\"font-size:13px;color:#6b7280;\">Dacă votarea se încheie fără prelungire, rezultatele vor fi "
+        "trimise automat la încheiere, împreună cu un raport PDF.</p>"
         "</div>"
     )
     return send_email(

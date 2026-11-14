@@ -91,6 +91,9 @@ class Election(Base):
     # Random, unguessable identifier used by the public dashboard:
     # https://domeniu/{public_uuid}/dashboard
     public_uuid = Column(String, unique=True, index=True, default=lambda: uuid.uuid4().hex)
+    # Secret link for the APC to prolong the vote (sent in the expiry reminders and the final email):
+    # https://domeniu/extend/{extend_uuid}. Separate from public_uuid, so the dashboard link cannot prolong.
+    extend_uuid = Column(String, unique=True, index=True, default=lambda: uuid.uuid4().hex)
 
     # --- Confirmation email options (per election) -------------------------
     email_with_attachment = Column(Boolean, default=True)  # False = send the email without the PDF

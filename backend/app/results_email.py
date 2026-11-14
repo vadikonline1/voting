@@ -56,7 +56,7 @@ def _header(election, results: dict, *, final: bool) -> str:
 
 
 def build_results_email_text(
-    election, results: dict, *, dashboard_url: str = "", final: bool = False
+    election, results: dict, *, dashboard_url: str = "", final: bool = False, extend_url: str = ""
 ) -> str:
     kind, status, generated = _header(election, results, final=final)
     lines = [
@@ -82,6 +82,12 @@ def build_results_email_text(
             dashboard_url,
             "",
         ]
+    if extend_url:
+        lines += [
+            "Dacă votarea trebuie prelungită, alegeți perioada de prelungire la adresa:",
+            extend_url,
+            "",
+        ]
     lines += [
         "Acest raport este generat automat de sistemul de vot.",
         "Distribuire: APC (rezultate agregate, fără date personale ale votanților).",
@@ -90,7 +96,7 @@ def build_results_email_text(
 
 
 def build_results_email_html(
-    election, results: dict, *, dashboard_url: str = "", final: bool = False
+    election, results: dict, *, dashboard_url: str = "", final: bool = False, extend_url: str = ""
 ) -> str:
     kind, status, generated = _header(election, results, final=final)
 
@@ -121,6 +127,18 @@ def build_results_email_html(
             "</div>"
             f'<a href="{escape(dashboard_url)}" style="color:#2452b5;word-break:break-all;">'
             f"{escape(dashboard_url)}</a></div>"
+        )
+
+    extend_block = ""
+    if extend_url:
+        extend_block = (
+            '<div style="margin:16px 0 0;padding:14px 16px;border:1px solid #e3d3a8;'
+            'border-radius:10px;background:#fdf8ea;">'
+            '<div style="font-weight:600;color:#1f2430;margin:0 0 6px;">Prelungirea votării</div>'
+            '<div style="font-size:13px;color:#4b5b76;line-height:1.5;margin:0 0 10px;">'
+            "Dacă votarea trebuie prelungită, alegeți perioada la adresa de mai jos:</div>"
+            f'<a href="{escape(extend_url)}" style="display:inline-block;padding:9px 16px;border-radius:999px;'
+            'background:#2452b5;color:#fff;text-decoration:none;font-weight:600;">Prelungește votarea</a></div>'
         )
 
     status_color = "#2f7d4f" if results.get("status") == "open" else "#6b7280"
@@ -160,6 +178,7 @@ def build_results_email_html(
       </table>
       {''.join(questions_html)}
       {dashboard_block}
+      {extend_block}
       <p style="margin:22px 0 0;font-size:12px;color:#9ca3af;line-height:1.5;">
         Raport generat automat de sistemul de vot. Conține rezultate agregate, fără date
         personale ale votanților.

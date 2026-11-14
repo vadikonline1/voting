@@ -8,6 +8,7 @@ import AdminChangePassword from "./pages/AdminChangePassword";
 import ElectionDashboard from "./pages/ElectionDashboard";
 import Home from "./pages/Home";
 import VotePage from "./pages/VotePage";
+import ExtendPage from "./pages/ExtendPage";
 
 export default function App() {
   return (
@@ -25,6 +26,9 @@ export default function App() {
 
       {/* public results dashboard: /{public_uuid}/dashboard */}
       <Route path="/:uuid/dashboard" element={<ElectionDashboard />} />
+
+      {/* secret link sent to the APC by email: /extend/{extend_uuid} - the APC chooses how long to prolong */}
+      <Route path="/extend/:token" element={<ExtendPage />} />
 
       {/* fixed public voting link per APC: /{nr_apc} - must stay last so it doesn't swallow /admin/* */}
       <Route path="/:nrApc" element={<VotePage />} />

@@ -116,6 +116,14 @@ export default function AdminElectionDetail() {
             <p className="muted section-hint">
               APC-ul primește emailuri cu 3, 2 și 1 zi înainte de încheiere. Dacă prelungiți votarea, alegeți o dată nouă.
             </p>
+            {checklistData?.extend_url && (
+              <p className="muted section-hint">
+                Link-ul de prelungire trimis APC-ului în emailuri:{" "}
+                <a href={checklistData.extend_url} target="_blank" rel="noreferrer">
+                  {checklistData.extend_url}
+                </a>
+              </p>
+            )}
             <div className="extend-row">
               <input
                 type="datetime-local"
