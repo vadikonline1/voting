@@ -94,8 +94,10 @@ export default function ResultsView({ results, title = true }) {
         <section key={index} className="results-group">
           {group.title && (
             <div className="results-group-title">
-              <span className="results-group-label">Chestiunea</span>
-              <span>{group.title}</span>
+              <span>
+                {group.number ? `Chestiunea ${group.number}. ` : ""}
+                {group.title}
+              </span>
             </div>
           )}
           {(group.questions || []).map((question) => (

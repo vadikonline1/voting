@@ -76,6 +76,12 @@ def compute_results(db, election: models.Election) -> dict:
         question_rows.append(row)
         chestiuni[-1]["questions"].append(row)
     chestiuni = [g for g in chestiuni if g["title"] or g["questions"]]
+    # "Chestiunea 1", "Chestiunea 2"… in the order of the ballot
+    number = 0
+    for group in chestiuni:
+        if group["title"]:
+            number += 1
+            group["number"] = number
 
     participation = round(total_votes / total_tokens * 100, 1) if total_tokens else 0.0
     now = datetime.now(timezone.utc)

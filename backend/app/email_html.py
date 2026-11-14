@@ -46,9 +46,11 @@ def _ballot_text(election, voter, answers: dict, submitted_at: datetime, templat
     ]
     if texts.get("note"):
         lines += [texts["note"], ""]
+    chestiune_no = 0
     for q, label in labelled_questions(_questions(election)):
         if label is None:
-            lines += [q.get("text", "").strip(), ""]
+            chestiune_no += 1
+            lines += [f"Chestiunea {chestiune_no}. {q.get('text', '').strip()}", ""]
             continue
         lines.append(f"{label}. {q.get('text', '').strip()}")
         lines.append(f"Vot: {_answer_text(q, answers.get(q['id']))}")
@@ -63,12 +65,15 @@ def _ballot_text(election, voter, answers: dict, submitted_at: datetime, templat
 def _ballot_html(election, voter, answers: dict, submitted_at: datetime, template: dict | None = None) -> str:
     texts = build_ballot_texts(election, voter, template, submitted_at)
     rows = []
+    chestiune_no = 0
     for q, label in labelled_questions(_questions(election)):
         if label is None:
+            chestiune_no += 1
+            title = f"Chestiunea {chestiune_no}. {q.get('text', '').strip()}"
             rows.append(
                 '<div style="margin:18px 0 10px;padding:12px 14px;border-left:4px solid #2452b5;'
                 'background:#f5f8ff;border-radius:6px;font-weight:600;line-height:1.45;">'
-                f'{escape(q.get("text", "").strip())}</div>'
+                f"{escape(title)}</div>"
             )
             continue
         rows.append(

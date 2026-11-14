@@ -74,10 +74,12 @@ def generate_receipt_pdf(
     elements.append(Paragraph(xml_escape(texts["paragraph2"]), indent_style))
     elements.append(Spacer(1, 4 * mm))
 
+    chestiune_no = 0
     for q, label in labelled_questions(questions):
         if label is None:
+            chestiune_no += 1
             chestiune = q.get("text", "").strip().replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-            elements.append(Paragraph(f"<b>Chestiunea propusă spre vot:</b> {chestiune}", h2_style))
+            elements.append(Paragraph(f"<b>Chestiunea {chestiune_no}.</b> {chestiune}", h2_style))
             elements.append(Spacer(1, 2 * mm))
             continue
         qid = q["id"]

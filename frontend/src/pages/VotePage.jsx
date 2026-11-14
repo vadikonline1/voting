@@ -178,10 +178,12 @@ function visibleQuestions(questions, selectedTypes) {
 function labelledItems(questions) {
   const out = [];
   let counter = 0;
+  let chestiuneNo = 0;
   for (const q of questions || []) {
     if (q.type === "section") {
       counter = 0;
-      out.push({ q, label: null });
+      chestiuneNo += 1;
+      out.push({ q, label: null, chestiuneNo });
       continue;
     }
     counter += 1;
@@ -649,7 +651,10 @@ export default function VotePage() {
             if (label === null) {
               return (
                 <div key={q.id} className="chestiune-box chestiune-box-vote">
-                  <div className="chestiune-label">Chestiunea propusă spre vot</div>
+                  <div className="chestiune-label">
+                    Chestiunea{" "}
+                    {(ballot?.questions || []).filter((x) => x.type === "section").findIndex((x) => x.id === q.id) + 1}
+                  </div>
                   <div className="chestiune-text">{q.text}</div>
                   {q.exclusive && (
                     <p className="chestiune-hint">
