@@ -210,6 +210,21 @@ def _run_results_scheduler(stop_event: threading.Event, interval_seconds: int = 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    # votes made before "one vote per property" are split into one vote per property (runs once; idempotent)
+    from .database import SessionLocal
+    from .split_votes import split_multi_property_votes
+
+    db = SessionLocal()
+    try:
+        split = split_multi_property_votes(db)
+        if split:
+            print(f"[votes] Au fost împărțite {split} voturi cu mai multe imobile (câte un vot pe imobil).")
+    except Exception as exc:  # noqa: BLE001 - a repair problem must never stop the app
+        db.rollback()
+        print(f"[votes] Împărțirea voturilor nu a reușit: {exc}")
+    finally:
+        db.close()
+
     stop_event = threading.Event()
     thread = threading.Thread(
         target=_run_results_scheduler, args=(stop_event,), daemon=True,
