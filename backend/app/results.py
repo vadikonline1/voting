@@ -56,20 +56,26 @@ def compute_results(db, election: models.Election) -> dict:
                 tally[question["id"]][answer] = tally[question["id"]].get(answer, 0) + 1
 
     question_rows = []
+    # questions grouped by their chestiune (section); questions before any section have no title
+    chestiuni = [{"title": "", "questions": []}]
     for question, label in labelled_questions(questions):
         if label is None:
+            chestiuni.append({"title": (question.get("text") or "").strip(), "questions": []})
             continue
         options = []
         for option in question.get("options", []):
             count = tally[question["id"]].get(option, 0)
             percent = round(count / total_votes * 100, 1) if total_votes else 0.0
             options.append({"option": option, "count": count, "percent": percent})
-        question_rows.append({
+        row = {
             "id": question["id"],
             "number": label,
             "text": question.get("text", ""),
             "options": options,
-        })
+        }
+        question_rows.append(row)
+        chestiuni[-1]["questions"].append(row)
+    chestiuni = [g for g in chestiuni if g["title"] or g["questions"]]
 
     participation = round(total_votes / total_tokens * 100, 1) if total_tokens else 0.0
     now = datetime.now(timezone.utc)
@@ -77,6 +83,7 @@ def compute_results(db, election: models.Election) -> dict:
         "election_id": election.id,
         "title": election.title,
         "chestiune": election.chestiune or "",
+        "chestiuni": chestiuni,
         "nr_apc": election.nr_apc or "",
         "str_apc": election.str_apc or "",
         "oras": election.oras or "",

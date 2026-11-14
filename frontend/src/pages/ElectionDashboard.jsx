@@ -67,13 +67,6 @@ export default function ElectionDashboard() {
 
       {error && <p className="error">{error}</p>}
 
-      {results.chestiune && (
-        <section className="dashboard-chestiune">
-          <span className="eyebrow">Chestiunea propusă spre vot</span>
-          <p>{results.chestiune}</p>
-        </section>
-      )}
-
       <ResultsView results={results} title={false} />
 
       <p className="muted dashboard-footer">
