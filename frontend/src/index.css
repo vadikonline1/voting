@@ -1475,3 +1475,6 @@ h2 { font-size: 1.25rem; }
   display: flex;
   flex-direction: column;
 }
+
+/* the block comes first, the property number after it */
+.property-pair > .property-col:last-child { order: -1; }
